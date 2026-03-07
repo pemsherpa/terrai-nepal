@@ -9,49 +9,67 @@ import {
   AreaChart, Area, BarChart, Bar, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
+import { useMRV } from "@/contexts/MRVContext";
+import { analyzeForest, generateReport } from "@/lib/mrv-api";
+import { useToast } from "@/hooks/use-toast";
 
-const FOREST_TYPES = ["Tropical Moist", "Subtropical Broadleaf", "Temperate Conifer", "Alpine Scrub"];
-
-const ndviTrend = [
-  { year: 2019, ndvi: 0.62 }, { year: 2020, ndvi: 0.65 }, { year: 2021, ndvi: 0.64 },
-  { year: 2022, ndvi: 0.68 }, { year: 2023, ndvi: 0.66 }, { year: 2024, ndvi: 0.71 },
-  { year: 2025, ndvi: 0.69 },
-];
-
-const monthlyNdvi = [
-  { month: "Jan", ndvi: 0.52 }, { month: "Feb", ndvi: 0.58 },
-  { month: "Mar", ndvi: 0.63 }, { month: "Apr", ndvi: 0.69 },
-  { month: "May", ndvi: 0.72 }, { month: "Jun", ndvi: 0.68 },
-  { month: "Jul", ndvi: 0.65 }, { month: "Aug", ndvi: 0.61 },
-  { month: "Sep", ndvi: 0.67 }, { month: "Oct", ndvi: 0.70 },
-  { month: "Nov", ndvi: 0.66 }, { month: "Dec", ndvi: 0.55 },
-];
-
-const carbonData = {
-  agb_ha: 167, bgb_ha: 47, total_carbon: 22440, total_co2e: 82250, area_ha: 250,
+const FOREST_TYPES: Record<string, string> = {
+  "Tropical Moist": "tropical_moist",
+  "Subtropical Broadleaf": "subtropical_broadleaf",
+  "Temperate Conifer": "temperate_conifer",
+  "Alpine Scrub": "alpine_scrub",
 };
 
 const MRVDashboard = () => {
   const [lat, setLat] = useState("27.5");
   const [lon, setLon] = useState("84.3");
-  const [forestType, setForestType] = useState(FOREST_TYPES[0]);
-  const [analyzed, setAnalyzed] = useState(false);
+  const [forestType, setForestType] = useState("Tropical Moist");
+  const [baselineYear, setBaselineYear] = useState("2022");
+  const [comparisonYear, setComparisonYear] = useState("2024");
   const [loading, setLoading] = useState(false);
+  const { analysisData, setAnalysisData, setReportData, setRequestBody } = useMRV();
+  const { toast } = useToast();
 
-  const handleAnalyse = () => {
+  const handleAnalyse = async () => {
     setLoading(true);
-    setTimeout(() => {
-      setAnalyzed(true);
+    const body = {
+      lat: parseFloat(lat),
+      lon: parseFloat(lon),
+      buf_km: 5,
+      year1: parseInt(baselineYear),
+      year2: parseInt(comparisonYear),
+      start_month: 1,
+      end_month: 3,
+      forest_type: FOREST_TYPES[forestType] || "tropical_moist",
+      run_multiyear: true,
+    };
+
+    try {
+      const data = await analyzeForest(body);
+      setAnalysisData(data);
+      setRequestBody(body as unknown as Record<string, unknown>);
+
+      // Trigger report generation in background
+      generateReport(data as unknown as Record<string, unknown>)
+        .then(setReportData)
+        .catch(() => {});
+    } catch (err) {
+      toast({
+        title: "Analysis Failed",
+        description: err instanceof Error ? err.message : "Could not reach backend. Is it running on localhost:8000?",
+        variant: "destructive",
+      });
+    } finally {
       setLoading(false);
-    }, 1200);
+    }
   };
 
-  const changePercent = 4.5;
+  const d = analysisData;
+  const changePercent = d?.change_percent ?? 0;
   const isPositive = changePercent > 0;
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
-      {/* Page Header */}
       <div>
         <h1 className="font-serif text-2xl text-foreground">Forest Health Dashboard</h1>
         <p className="text-sm text-muted-foreground mt-1">Analyse satellite-derived vegetation indices and carbon stocks</p>
@@ -73,25 +91,25 @@ const MRVDashboard = () => {
             <Select value={forestType} onValueChange={setForestType}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {FOREST_TYPES.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                {Object.keys(FOREST_TYPES).map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Baseline Year</Label>
-            <Select defaultValue="2024">
+            <Select value={baselineYear} onValueChange={setBaselineYear}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {[2022, 2023, 2024].map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                {[2020, 2021, 2022, 2023, 2024].map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Comparison Year</Label>
-            <Select defaultValue="2025">
+            <Select value={comparisonYear} onValueChange={setComparisonYear}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {[2023, 2024, 2025].map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                {[2022, 2023, 2024, 2025].map((y) => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -116,7 +134,7 @@ const MRVDashboard = () => {
         </div>
       </Card>
 
-      {!analyzed ? (
+      {!d ? (
         <div className="text-center py-20">
           <TreePine className="w-16 h-16 mx-auto text-muted-foreground/20 mb-4" />
           <p className="text-muted-foreground">Enter coordinates and click <strong>Analyse Forest</strong> to begin.</p>
@@ -126,10 +144,10 @@ const MRVDashboard = () => {
           {/* Metrics Row */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { label: "NDVI 2024", value: "0.6600", icon: Activity, color: "text-foreground" },
-              { label: "NDVI 2025", value: "0.6900", icon: Layers, color: "text-foreground" },
-              { label: "Change", value: `${isPositive ? "+" : ""}${changePercent}%`, icon: isPositive ? TrendingUp : TrendingDown, color: isPositive ? "text-accent" : "text-destructive" },
-              { label: "Total Area", value: "250 ha", icon: MapPin, color: "text-foreground" },
+              { label: `NDVI ${baselineYear}`, value: d.ndvi_year1?.toFixed(4) ?? "—", icon: Activity, color: "text-foreground" },
+              { label: `NDVI ${comparisonYear}`, value: d.ndvi_year2?.toFixed(4) ?? "—", icon: Layers, color: "text-foreground" },
+              { label: "Change", value: `${isPositive ? "+" : ""}${changePercent.toFixed(1)}%`, icon: isPositive ? TrendingUp : TrendingDown, color: isPositive ? "text-accent" : "text-destructive" },
+              { label: "Total Area", value: `${d.area_ha ?? "—"} ha`, icon: MapPin, color: "text-foreground" },
             ].map((m) => (
               <Card key={m.label} className="p-5 shadow-card">
                 <div className="flex items-center justify-between mb-3">
@@ -164,10 +182,10 @@ const MRVDashboard = () => {
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
-                { label: "Above-Ground Biomass", val: `${carbonData.agb_ha}`, unit: "tonnes/ha" },
-                { label: "Total Carbon Stock", val: carbonData.total_carbon.toLocaleString(), unit: "tonnes C" },
-                { label: "Total CO₂ Equivalent", val: carbonData.total_co2e.toLocaleString(), unit: "tonnes CO₂e" },
-                { label: "Area Analysed", val: `${carbonData.area_ha}`, unit: "hectares" },
+                { label: "Above-Ground Biomass", val: `${d.agb_ha ?? "—"}`, unit: "tonnes/ha" },
+                { label: "Total Carbon Stock", val: (d.total_carbon ?? 0).toLocaleString(), unit: "tonnes C" },
+                { label: "Total CO₂ Equivalent", val: (d.total_co2e ?? 0).toLocaleString(), unit: "tonnes CO₂e" },
+                { label: "Area Analysed", val: `${d.area_ha ?? "—"}`, unit: "hectares" },
               ].map((c) => (
                 <div key={c.label} className="bg-primary-foreground/10 rounded-lg p-4 text-center">
                   <div className="text-[10px] uppercase tracking-widest text-primary-foreground/50 mb-1 font-semibold">{c.label}</div>
@@ -182,43 +200,49 @@ const MRVDashboard = () => {
           </Card>
 
           {/* Charts */}
-          <div className="grid lg:grid-cols-2 gap-6">
-            <Card className="p-5 shadow-card">
-              <h3 className="font-serif text-base text-foreground mb-4">Multi-Year NDVI Trend</h3>
-              <ResponsiveContainer width="100%" height={260}>
-                <AreaChart data={ndviTrend}>
-                  <defs>
-                    <linearGradient id="mrvNdviGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="hsl(153,40%,42%)" stopOpacity={0.3} />
-                      <stop offset="100%" stopColor="hsl(153,40%,42%)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(140,25%,88%)" />
-                  <XAxis dataKey="year" tick={{ fontSize: 12 }} />
-                  <YAxis domain={[0.5, 0.8]} tick={{ fontSize: 12 }} />
-                  <Tooltip contentStyle={{ borderRadius: 8, fontSize: 13 }} />
-                  <Area type="monotone" dataKey="ndvi" stroke="hsl(153,40%,42%)" strokeWidth={2.5} fill="url(#mrvNdviGrad)" dot={{ r: 4, fill: "hsl(153,44%,18%)", stroke: "#fff", strokeWidth: 2 }} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </Card>
+          {(d.ndvi_trend?.length || d.monthly_ndvi?.length) && (
+            <div className="grid lg:grid-cols-2 gap-6">
+              {d.ndvi_trend?.length > 0 && (
+                <Card className="p-5 shadow-card">
+                  <h3 className="font-serif text-base text-foreground mb-4">Multi-Year NDVI Trend</h3>
+                  <ResponsiveContainer width="100%" height={260}>
+                    <AreaChart data={d.ndvi_trend}>
+                      <defs>
+                        <linearGradient id="mrvNdviGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="hsl(153,40%,42%)" stopOpacity={0.3} />
+                          <stop offset="100%" stopColor="hsl(153,40%,42%)" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(140,25%,88%)" />
+                      <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+                      <YAxis domain={["auto", "auto"]} tick={{ fontSize: 12 }} />
+                      <Tooltip contentStyle={{ borderRadius: 8, fontSize: 13 }} />
+                      <Area type="monotone" dataKey="ndvi" stroke="hsl(153,40%,42%)" strokeWidth={2.5} fill="url(#mrvNdviGrad)" dot={{ r: 4, fill: "hsl(153,44%,18%)", stroke: "#fff", strokeWidth: 2 }} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </Card>
+              )}
 
-            <Card className="p-5 shadow-card">
-              <h3 className="font-serif text-base text-foreground mb-4">Monthly NDVI (2025)</h3>
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart data={monthlyNdvi}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(140,25%,88%)" />
-                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                  <YAxis domain={[0.4, 0.8]} tick={{ fontSize: 12 }} />
-                  <Tooltip contentStyle={{ borderRadius: 8, fontSize: 13 }} />
-                  <Bar dataKey="ndvi" radius={[4, 4, 0, 0]}>
-                    {monthlyNdvi.map((entry, i) => (
-                      <Cell key={i} fill={entry.ndvi > 0.65 ? "hsl(153,40%,42%)" : entry.ndvi > 0.55 ? "hsl(153,30%,55%)" : "hsl(45,50%,55%)"} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </Card>
-          </div>
+              {d.monthly_ndvi?.length > 0 && (
+                <Card className="p-5 shadow-card">
+                  <h3 className="font-serif text-base text-foreground mb-4">Monthly NDVI ({comparisonYear})</h3>
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={d.monthly_ndvi}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(140,25%,88%)" />
+                      <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                      <YAxis domain={["auto", "auto"]} tick={{ fontSize: 12 }} />
+                      <Tooltip contentStyle={{ borderRadius: 8, fontSize: 13 }} />
+                      <Bar dataKey="ndvi" radius={[4, 4, 0, 0]}>
+                        {d.monthly_ndvi.map((entry, i) => (
+                          <Cell key={i} fill={entry.ndvi > 0.65 ? "hsl(153,40%,42%)" : entry.ndvi > 0.55 ? "hsl(153,30%,55%)" : "hsl(45,50%,55%)"} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Card>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

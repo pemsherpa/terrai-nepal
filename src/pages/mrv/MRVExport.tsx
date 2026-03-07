@@ -2,36 +2,55 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Download, FileText, MapPin, Leaf, Calendar, CheckCircle } from "lucide-react";
+import { Download, FileText, MapPin, Leaf, Calendar, CheckCircle, TreePine } from "lucide-react";
 import { useState } from "react";
-
-const summaryData = {
-  location: "Chitwan National Park",
-  coordinates: "27.5°N, 84.3°E",
-  forestType: "Subtropical Broadleaf",
-  baselineYear: 2024,
-  comparisonYear: 2025,
-  ndviChange: "+4.5%",
-  totalCarbon: "22,440 tonnes C",
-  totalCo2e: "82,250 tonnes CO₂e",
-  area: "250 hectares",
-  riskLevel: "LOW",
-  reportDate: "March 7, 2026",
-};
+import { useMRV } from "@/contexts/MRVContext";
+import { downloadPdf } from "@/lib/mrv-api";
+import { useToast } from "@/hooks/use-toast";
 
 const MRVExport = () => {
   const [downloading, setDownloading] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
+  const { analysisData, requestBody } = useMRV();
+  const { toast } = useToast();
 
-  const handleDownload = () => {
+  if (!analysisData) {
+    return (
+      <div className="p-6 max-w-3xl mx-auto text-center py-20">
+        <TreePine className="w-16 h-16 mx-auto text-muted-foreground/20 mb-4" />
+        <p className="text-muted-foreground">Run an analysis on the <strong>Dashboard</strong> first to export a report.</p>
+      </div>
+    );
+  }
+
+  const d = analysisData;
+
+  const handleDownload = async () => {
     setDownloading(true);
     setDownloaded(false);
-    // Simulate PDF generation / API call
-    setTimeout(() => {
-      setDownloading(false);
+    try {
+      await downloadPdf({ ...requestBody, ...d } as Record<string, unknown>);
       setDownloaded(true);
-    }, 2500);
+    } catch (err) {
+      toast({
+        title: "PDF Export Failed",
+        description: err instanceof Error ? err.message : "Could not reach backend.",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloading(false);
+    }
   };
+
+  const summaryItems = [
+    { icon: MapPin, label: "Coordinates", value: `${requestBody?.lat ?? "—"}°N, ${requestBody?.lon ?? "—"}°E` },
+    { icon: Leaf, label: "Forest Type", value: String(requestBody?.forest_type ?? "—") },
+    { icon: Calendar, label: "Period", value: `${requestBody?.year1 ?? "—"} → ${requestBody?.year2 ?? "—"}` },
+    { icon: Leaf, label: "NDVI Change", value: `${d.change_percent > 0 ? "+" : ""}${d.change_percent?.toFixed(1) ?? "—"}%` },
+    { icon: Leaf, label: "Total Carbon", value: `${(d.total_carbon ?? 0).toLocaleString()} tonnes C` },
+    { icon: Leaf, label: "CO₂ Equivalent", value: `${(d.total_co2e ?? 0).toLocaleString()} tonnes CO₂e` },
+    { icon: MapPin, label: "Area", value: `${d.area_ha ?? "—"} hectares` },
+  ];
 
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6">
@@ -40,24 +59,13 @@ const MRVExport = () => {
         <p className="text-sm text-muted-foreground mt-1">Download your analysis as a formal PDF report</p>
       </div>
 
-      {/* Analysis Summary */}
       <Card className="p-6 shadow-card">
         <h2 className="font-serif text-lg text-foreground mb-4 flex items-center gap-2">
           <FileText className="w-5 h-5 text-accent" /> Analysis Summary
         </h2>
         <Separator className="mb-5" />
-
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {[
-            { icon: MapPin, label: "Location", value: summaryData.location },
-            { icon: MapPin, label: "Coordinates", value: summaryData.coordinates },
-            { icon: Leaf, label: "Forest Type", value: summaryData.forestType },
-            { icon: Calendar, label: "Period", value: `${summaryData.baselineYear} → ${summaryData.comparisonYear}` },
-            { icon: Leaf, label: "NDVI Change", value: summaryData.ndviChange },
-            { icon: Leaf, label: "Total Carbon", value: summaryData.totalCarbon },
-            { icon: Leaf, label: "CO₂ Equivalent", value: summaryData.totalCo2e },
-            { icon: MapPin, label: "Area", value: summaryData.area },
-          ].map((item) => (
+          {summaryItems.map((item) => (
             <div key={item.label} className="flex items-start gap-3 py-2">
               <item.icon className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
               <div>
@@ -67,24 +75,16 @@ const MRVExport = () => {
             </div>
           ))}
         </div>
-
-        <div className="mt-4 flex items-center gap-2">
-          <span className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Risk Level:</span>
-          <Badge className="bg-accent text-accent-foreground text-xs font-bold">{summaryData.riskLevel}</Badge>
-        </div>
       </Card>
 
-      {/* Download Section */}
       <Card className="p-8 shadow-card text-center">
         <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-5">
           <Download className="w-8 h-8 text-muted-foreground" />
         </div>
-
         <h2 className="font-serif text-xl text-foreground mb-2">Official PDF Report</h2>
         <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
           Generate a comprehensive, boardroom-ready PDF containing satellite analysis, carbon estimates, risk assessment, and AI-generated recommendations.
         </p>
-
         <Button
           onClick={handleDownload}
           disabled={downloading}
@@ -106,11 +106,8 @@ const MRVExport = () => {
             </span>
           )}
         </Button>
-
         {downloaded && (
-          <p className="text-xs text-accent mt-3 animate-fade-in-up">
-            ✓ Your report has been generated successfully.
-          </p>
+          <p className="text-xs text-accent mt-3 animate-fade-in-up">✓ Your report has been generated successfully.</p>
         )}
       </Card>
 

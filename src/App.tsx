@@ -2,11 +2,15 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import About from "./pages/About";
 import NotFound from "./pages/NotFound";
+import MRVLayout from "./components/mrv/MRVLayout";
+import MRVDashboard from "./pages/mrv/MRVDashboard";
+import MRVReport from "./pages/mrv/MRVReport";
+import MRVExport from "./pages/mrv/MRVExport";
 
 const queryClient = new QueryClient();
 
@@ -20,6 +24,12 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/about" element={<About />} />
+          <Route path="/mrv" element={<MRVLayout />}>
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<MRVDashboard />} />
+            <Route path="report" element={<MRVReport />} />
+            <Route path="export" element={<MRVExport />} />
+          </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

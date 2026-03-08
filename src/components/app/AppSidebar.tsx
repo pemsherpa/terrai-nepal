@@ -80,11 +80,25 @@ export function AppSidebar() {
       <SidebarFooter className="p-3">
         <SidebarMenu>
           <SidebarMenuItem>
+            <SidebarMenuButton asChild tooltip="Profile" isActive={isActive("/app/profile")}>
+              <NavLink to="/app/profile" className="hover:bg-sidebar-accent/50">
+                <User className="h-4 w-4" />
+                {!collapsed && <span className="text-sm">{user?.email?.split("@")[0] ?? "Profile"}</span>}
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
             <SidebarMenuButton asChild tooltip="Back to Home">
               <NavLink to="/" className="hover:bg-sidebar-accent/50 text-sidebar-foreground/60">
                 <Home className="h-4 w-4" />
                 {!collapsed && <span className="text-sm">Back to Home</span>}
               </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton tooltip="Sign Out" onClick={signOut} className="hover:bg-sidebar-accent/50 text-sidebar-foreground/60 cursor-pointer">
+              <LogOut className="h-4 w-4" />
+              {!collapsed && <span className="text-sm">Sign Out</span>}
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

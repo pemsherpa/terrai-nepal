@@ -7,10 +7,6 @@ import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import About from "./pages/About";
 import NotFound from "./pages/NotFound";
-import MRVLayout from "./components/mrv/MRVLayout";
-import MRVDashboard from "./pages/mrv/MRVDashboard";
-import MRVReport from "./pages/mrv/MRVReport";
-import MRVExport from "./pages/mrv/MRVExport";
 
 const queryClient = new QueryClient();
 

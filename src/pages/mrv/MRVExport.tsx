@@ -109,6 +109,9 @@ const MRVExport = () => {
         {downloaded && (
           <p className="text-xs text-accent mt-3 animate-fade-in-up">✓ Your report has been generated successfully.</p>
         )}
+        {(reportLoading || !reportData) && !downloading && (
+          <p className="text-xs text-muted-foreground mt-3">Waiting for AI report to finish generating…</p>
+        )}
       </Card>
 
       <p className="text-xs text-center text-muted-foreground/40 italic">

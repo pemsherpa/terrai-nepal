@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 const MRVExport = () => {
   const [downloading, setDownloading] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
-  const { analysisData, requestBody } = useMRV();
+  const { analysisData, reportData, reportLoading, requestBody } = useMRV();
   const { toast } = useToast();
 
   if (!analysisData) {

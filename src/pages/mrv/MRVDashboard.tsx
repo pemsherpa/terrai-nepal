@@ -31,7 +31,7 @@ const MRVDashboard = () => {
   const [baselineYear, setBaselineYear] = useState("2022");
   const [comparisonYear, setComparisonYear] = useState("2024");
   const [loading, setLoading] = useState(false);
-  const { analysisData, setAnalysisData, setReportData, setRequestBody } = useMRV();
+  const { analysisData, setAnalysisData, setReportData, setRequestBody, reportLoading, setReportLoading } = useMRV();
   const { toast } = useToast();
   const createBiomass = useCreateBiomassEntry();
   const { user } = useAuth();

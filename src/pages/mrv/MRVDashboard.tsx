@@ -33,6 +33,10 @@ const MRVDashboard = () => {
   const [loading, setLoading] = useState(false);
   const { analysisData, setAnalysisData, setReportData, setRequestBody } = useMRV();
   const { toast } = useToast();
+  const createBiomass = useCreateBiomassEntry();
+  const { user } = useAuth();
+  const { data: projects } = useProjects();
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
 
   const handleAnalyse = async () => {
     setLoading(true);

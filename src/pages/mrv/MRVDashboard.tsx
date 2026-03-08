@@ -2,6 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Leaf, TrendingUp, TrendingDown, MapPin, TreePine, Activity, Layers, Loader2 } from "lucide-react";
@@ -26,7 +27,15 @@ const FOREST_TYPES: Record<string, string> = {
   "Alpine Scrub": "alpine_scrub",
 };
 
-type LocationSource = "district" | "community" | "custom";
+type LocationSource = "district" | "community" | "custom" | "draw";
+
+type LoadingStep = "idle" | "analyzing" | "reporting";
+
+const LOADING_MESSAGES: Record<LoadingStep, string> = {
+  idle: "",
+  analyzing: "Fetching satellite data & computing NDVI…",
+  reporting: "Llama 3 is generating due diligence report…",
+};
 
 const MRVDashboard = () => {
   const [locationSource, setLocationSource] = useState<LocationSource>("district");
@@ -36,15 +45,20 @@ const MRVDashboard = () => {
   const [forestType, setForestType] = useState("Tropical Moist");
   const [baselineYear, setBaselineYear] = useState("2022");
   const [comparisonYear, setComparisonYear] = useState("2024");
-  const [loading, setLoading] = useState(false);
-  const { analysisData, setAnalysisData, setReportData, setRequestBody, setLocationName, reportLoading, setReportLoading } = useMRV();
+  const [bufKm, setBufKm] = useState(5);
+  const [loadingStep, setLoadingStep] = useState<LoadingStep>("idle");
+  const [customGeojson, setCustomGeojson] = useState<GeoJSON.GeoJSON | null>(null);
+  const { analysisData, setAnalysisData, setReportData, setRequestBody, setLocationName, setReportLoading } = useMRV();
   const { toast } = useToast();
   const createBiomass = useCreateBiomassEntry();
   const { user } = useAuth();
   const { data: projects } = useProjects();
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
 
-  const getCoordinates = (): { lat: number; lon: number; name: string } => {
+  const isLoading = loadingStep !== "idle";
+
+  const getCoordinates = (): { lat: number; lon: number; name: string } | null => {
+    if (locationSource === "draw") return null;
     if (locationSource === "district" && selectedLocation) {
       const loc = NEPAL_DISTRICTS[selectedLocation];
       return { lat: loc.lat, lon: loc.lon, name: selectedLocation };
@@ -57,25 +71,34 @@ const MRVDashboard = () => {
   };
 
   const handleAnalyse = async () => {
-    setLoading(true);
     const coords = getCoordinates();
+    const isDraw = locationSource === "draw";
+
+    if (isDraw && !customGeojson) {
+      toast({ title: "No polygon drawn", description: "Please draw a polygon on the map first.", variant: "destructive" });
+      return;
+    }
+
+    // Step 1: Analyse
+    setLoadingStep("analyzing");
     const body: AnalyzeRequest = {
-      lat: coords.lat,
-      lon: coords.lon,
-      buf_km: 5,
       year1: parseInt(baselineYear),
       year2: parseInt(comparisonYear),
       start_month: 1,
       end_month: 3,
       forest_type: FOREST_TYPES[forestType] || "tropical_moist",
       run_multiyear: true,
+      ...(isDraw
+        ? { geojson: customGeojson! }
+        : { lat: coords!.lat, lon: coords!.lon, buf_km: bufKm }),
     };
 
     try {
       const data = await analyzeForest(body);
       setAnalysisData(data);
       setRequestBody(body);
-      setLocationName(coords.name);
+      const locName = isDraw ? "Custom Polygon" : coords!.name;
+      setLocationName(locName);
 
       // Save to DB if a project is selected
       if (selectedProjectId && user) {
@@ -92,11 +115,12 @@ const MRVDashboard = () => {
         }
       }
 
-      // Build report request and trigger in background
+      // Step 2: Generate report
+      setLoadingStep("reporting");
       const reportBody: ReportRequest = {
-        location: coords.name,
-        lat: coords.lat,
-        lon: coords.lon,
+        location: locName,
+        lat: coords?.lat ?? 0,
+        lon: coords?.lon ?? 0,
         year1: body.year1,
         year2: body.year2,
         start_month: body.start_month,
@@ -108,19 +132,21 @@ const MRVDashboard = () => {
         trend_data: data.trend_data,
         monthly_series: data.monthly_series,
       };
-      setReportLoading(true);
-      generateReport(reportBody)
-        .then(setReportData)
-        .catch(() => {})
-        .finally(() => setReportLoading(false));
+
+      try {
+        const report = await generateReport(reportBody);
+        setReportData(report);
+      } catch {
+        toast({ title: "Report generation failed", description: "Analysis succeeded but the AI report could not be generated.", variant: "destructive" });
+      }
     } catch (err) {
       toast({
         title: "Analysis Failed",
-        description: err instanceof Error ? err.message : "Could not reach backend. Is it running on localhost:8000?",
+        description: err instanceof Error ? err.message : "Could not reach backend.",
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setLoadingStep("idle");
     }
   };
 
@@ -132,7 +158,17 @@ const MRVDashboard = () => {
 
   const locationOptions = locationSource === "district"
     ? Object.keys(NEPAL_DISTRICTS)
-    : Object.keys(COMMUNITY_FORESTS);
+    : locationSource === "community"
+    ? Object.keys(COMMUNITY_FORESTS)
+    : [];
+
+  const canAnalyse =
+    !isLoading &&
+    (locationSource === "draw"
+      ? !!customGeojson
+      : locationSource === "custom"
+      ? true
+      : !!selectedLocation);
 
   return (
     <div className="space-y-6">
@@ -147,17 +183,23 @@ const MRVDashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Location Source</Label>
-            <Select value={locationSource} onValueChange={(v) => { setLocationSource(v as LocationSource); setSelectedLocation(""); }}>
+            <Select value={locationSource} onValueChange={(v) => { setLocationSource(v as LocationSource); setSelectedLocation(""); setCustomGeojson(null); }}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="district">Nepal District</SelectItem>
                 <SelectItem value="community">Community Forest</SelectItem>
                 <SelectItem value="custom">Custom Coordinates</SelectItem>
+                <SelectItem value="draw">Draw on Map</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {locationSource !== "custom" ? (
+          {locationSource === "draw" ? (
+            <div className="md:col-span-2 flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
+              <MapPin className="w-3.5 h-3.5 shrink-0" />
+              <span>{customGeojson ? "✓ Polygon drawn — ready to analyse" : "Use the drawing tools on the map below to define your AOI"}</span>
+            </div>
+          ) : locationSource !== "custom" ? (
             <div className="space-y-1.5 md:col-span-2">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 {locationSource === "district" ? "District" : "Community Forest"}
@@ -185,8 +227,22 @@ const MRVDashboard = () => {
           )}
         </div>
 
-        {/* Analysis params */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+        {/* Radius + Analysis params */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+          {locationSource !== "draw" && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Radius: {bufKm} km
+              </Label>
+              <Slider
+                value={[bufKm]}
+                onValueChange={([v]) => setBufKm(v)}
+                min={1}
+                max={20}
+                step={1}
+              />
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Forest Type</Label>
             <Select value={forestType} onValueChange={setForestType}>
@@ -230,7 +286,7 @@ const MRVDashboard = () => {
         )}
 
         {/* Selected location preview */}
-        {(locationSource !== "custom" && selectedLocation) && (
+        {(locationSource !== "custom" && locationSource !== "draw" && selectedLocation) && coords && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
             <MapPin className="w-3.5 h-3.5" />
             <span>{selectedLocation} — {coords.lat.toFixed(4)}°N, {coords.lon.toFixed(4)}°E</span>
@@ -240,13 +296,13 @@ const MRVDashboard = () => {
         <div className="flex justify-end">
           <Button
             onClick={handleAnalyse}
-            disabled={loading || (locationSource !== "custom" && !selectedLocation)}
+            disabled={!canAnalyse}
             className="bg-primary text-primary-foreground hover:bg-primary/90 px-8"
           >
-            {loading ? (
+            {isLoading ? (
               <span className="flex items-center gap-2">
-                <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                Analysing…
+                <Loader2 className="w-4 h-4 animate-spin" />
+                {LOADING_MESSAGES[loadingStep]}
               </span>
             ) : (
               <span className="flex items-center gap-2">
@@ -257,8 +313,29 @@ const MRVDashboard = () => {
         </div>
       </Card>
 
-      {loading ? (
+      {/* Map – always visible when draw mode or when we have coords */}
+      {(locationSource === "draw" || coords) && (
+        <NepalMap
+          markers={coords ? [{ lat: coords.lat, lon: coords.lon, label: coords.name }] : []}
+          circleCenter={coords && locationSource !== "draw" ? [coords.lat, coords.lon] : null}
+          circleRadiusKm={bufKm}
+          drawMode={locationSource === "draw"}
+          onPolygonCreated={setCustomGeojson}
+        />
+      )}
+
+      {isLoading ? (
         <div className="space-y-6 animate-fade-in-up">
+          {/* Loading step indicator */}
+          <Card className="p-4 shadow-card border-accent/30 bg-accent/5 flex items-center gap-3">
+            <Loader2 className="w-5 h-5 animate-spin text-accent" />
+            <div>
+              <p className="text-sm font-medium text-foreground">{LOADING_MESSAGES[loadingStep]}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Step {loadingStep === "analyzing" ? "1/2" : "2/2"}
+              </p>
+            </div>
+          </Card>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <Card key={i} className="p-5 shadow-card space-y-3">
@@ -267,7 +344,6 @@ const MRVDashboard = () => {
               </Card>
             ))}
           </div>
-          <Skeleton className="h-64 w-full rounded-lg" />
           <Skeleton className="h-48 w-full rounded-lg" />
         </div>
       ) : !d ? (
@@ -277,14 +353,6 @@ const MRVDashboard = () => {
         </div>
       ) : (
         <div className="space-y-6 animate-fade-in-up">
-          {/* Report generating indicator */}
-          {reportLoading && (
-            <Card className="p-4 shadow-card border-accent/30 bg-accent/5 flex items-center gap-3">
-              <Loader2 className="w-4 h-4 animate-spin text-accent" />
-              <span className="text-sm text-muted-foreground">AI Due Diligence Report is generating in the background…</span>
-            </Card>
-          )}
-
           {/* Metrics Row */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
@@ -302,11 +370,6 @@ const MRVDashboard = () => {
               </Card>
             ))}
           </div>
-
-          {/* Interactive Nepal Map */}
-          <NepalMap
-            markers={[{ lat: coords.lat, lon: coords.lon, label: `${coords.name}` }]}
-          />
 
           {/* Carbon Stock */}
           {ce && (

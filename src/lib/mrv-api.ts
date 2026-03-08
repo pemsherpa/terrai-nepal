@@ -3,15 +3,16 @@ const API_BASE = "http://localhost:8000";
 // ── Request / Response interfaces ──────────────────────────────
 
 export interface AnalyzeRequest {
-  lat: number;
-  lon: number;
-  buf_km: number;
+  lat?: number;
+  lon?: number;
+  buf_km?: number;
   year1: number;
   year2: number;
   start_month: number;
   end_month: number;
   forest_type: string;
   run_multiyear: boolean;
+  geojson?: GeoJSON.GeoJSON;
 }
 
 export interface CarbonEstimate {

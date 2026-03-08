@@ -314,14 +314,17 @@ const MRVDashboard = () => {
         </div>
       </Card>
 
-      {/* Map – always visible when draw mode or when we have coords */}
-      {(locationSource === "draw" || coords) && (
+      {/* Drawing map – separate, with labeled forests */}
+      {locationSource === "draw" && (
+        <DrawMap onPolygonCreated={setCustomGeojson} height="h-96" />
+      )}
+
+      {/* Results / AOI map */}
+      {locationSource !== "draw" && coords && (
         <NepalMap
-          markers={coords ? [{ lat: coords.lat, lon: coords.lon, label: coords.name }] : []}
-          circleCenter={coords && locationSource !== "draw" ? [coords.lat, coords.lon] : null}
+          markers={[{ lat: coords.lat, lon: coords.lon, label: coords.name }]}
+          circleCenter={[coords.lat, coords.lon]}
           circleRadiusKm={bufKm}
-          drawMode={locationSource === "draw"}
-          onPolygonCreated={setCustomGeojson}
           tileUrl={d?.tile_url}
         />
       )}

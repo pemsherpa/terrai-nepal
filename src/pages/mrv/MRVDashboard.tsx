@@ -193,21 +193,10 @@ const MRVDashboard = () => {
             ))}
           </div>
 
-          {/* Map Placeholder */}
-          <Card className="shadow-card overflow-hidden">
-            <div className="bg-muted h-80 flex items-center justify-center relative">
-              <div className="absolute inset-0 opacity-10" style={{
-                backgroundImage: "radial-gradient(circle at 30% 40%, hsl(var(--accent)) 0%, transparent 50%), radial-gradient(circle at 70% 60%, hsl(var(--primary)) 0%, transparent 50%)"
-              }} />
-              <div className="text-center z-10">
-                <MapPin className="w-10 h-10 mx-auto text-muted-foreground/40 mb-2" />
-                <p className="text-sm text-muted-foreground font-medium">Interactive Satellite Map</p>
-                <p className="text-xs text-muted-foreground/60 mt-1">
-                  {lat}°N, {lon}°E · Leaflet/Mapbox integration ready
-                </p>
-              </div>
-            </div>
-          </Card>
+          {/* Interactive Nepal Map */}
+          <NepalMap
+            markers={[{ lat: parseFloat(lat), lon: parseFloat(lon), label: `Analysis Point (${lat}°N, ${lon}°E)` }]}
+          />
 
           {/* Carbon Stock */}
           <Card className="bg-primary p-6 shadow-card border-0">

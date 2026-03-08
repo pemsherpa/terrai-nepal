@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 const MRVExport = () => {
   const [downloading, setDownloading] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
-  const { analysisData, requestBody } = useMRV();
+  const { analysisData, reportData, reportLoading, requestBody } = useMRV();
   const { toast } = useToast();
 
   if (!analysisData) {
@@ -87,7 +87,7 @@ const MRVExport = () => {
         </p>
         <Button
           onClick={handleDownload}
-          disabled={downloading}
+          disabled={downloading || reportLoading || !reportData}
           size="lg"
           className="bg-primary text-primary-foreground hover:bg-primary/90 px-10 text-base"
         >
@@ -108,6 +108,9 @@ const MRVExport = () => {
         </Button>
         {downloaded && (
           <p className="text-xs text-accent mt-3 animate-fade-in-up">✓ Your report has been generated successfully.</p>
+        )}
+        {(reportLoading || !reportData) && !downloading && (
+          <p className="text-xs text-muted-foreground mt-3">Waiting for AI report to finish generating…</p>
         )}
       </Card>
 

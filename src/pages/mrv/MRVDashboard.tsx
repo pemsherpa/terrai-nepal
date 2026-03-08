@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Leaf, TrendingUp, TrendingDown, MapPin, TreePine, Activity, Layers } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Leaf, TrendingUp, TrendingDown, MapPin, TreePine, Activity, Layers, Loader2 } from "lucide-react";
 import { useState } from "react";
 import {
   AreaChart, Area, BarChart, Bar, Cell,
@@ -31,7 +32,7 @@ const MRVDashboard = () => {
   const [baselineYear, setBaselineYear] = useState("2022");
   const [comparisonYear, setComparisonYear] = useState("2024");
   const [loading, setLoading] = useState(false);
-  const { analysisData, setAnalysisData, setReportData, setRequestBody } = useMRV();
+  const { analysisData, setAnalysisData, setReportData, setRequestBody, reportLoading, setReportLoading } = useMRV();
   const { toast } = useToast();
   const createBiomass = useCreateBiomassEntry();
   const { user } = useAuth();
@@ -72,9 +73,11 @@ const MRVDashboard = () => {
       }
 
       // Trigger report generation in background
+      setReportLoading(true);
       generateReport(data as unknown as Record<string, unknown>)
         .then(setReportData)
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => setReportLoading(false));
     } catch (err) {
       toast({
         title: "Analysis Failed",
@@ -168,13 +171,33 @@ const MRVDashboard = () => {
         </div>
       </Card>
 
-      {!d ? (
+      {loading ? (
+        <div className="space-y-6 animate-fade-in-up">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Card key={i} className="p-5 shadow-card space-y-3">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-8 w-24" />
+              </Card>
+            ))}
+          </div>
+          <Skeleton className="h-64 w-full rounded-lg" />
+          <Skeleton className="h-48 w-full rounded-lg" />
+        </div>
+      ) : !d ? (
         <div className="text-center py-20">
           <TreePine className="w-16 h-16 mx-auto text-muted-foreground/20 mb-4" />
           <p className="text-muted-foreground">Enter coordinates and click <strong>Analyse Forest</strong> to begin.</p>
         </div>
       ) : (
         <div className="space-y-6 animate-fade-in-up">
+          {/* Report generating indicator */}
+          {reportLoading && (
+            <Card className="p-4 shadow-card border-accent/30 bg-accent/5 flex items-center gap-3">
+              <Loader2 className="w-4 h-4 animate-spin text-accent" />
+              <span className="text-sm text-muted-foreground">AI Due Diligence Report is generating in the background…</span>
+            </Card>
+          )}
           {/* Metrics Row */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[

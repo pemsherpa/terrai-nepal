@@ -6,6 +6,8 @@ interface MRVContextValue {
   setAnalysisData: (data: AnalyzeResponse | null) => void;
   reportData: ReportResponse | null;
   setReportData: (data: ReportResponse | null) => void;
+  reportLoading: boolean;
+  setReportLoading: (loading: boolean) => void;
   requestBody: Record<string, unknown> | null;
   setRequestBody: (body: Record<string, unknown> | null) => void;
 }
@@ -15,10 +17,11 @@ const MRVContext = createContext<MRVContextValue | null>(null);
 export const MRVProvider = ({ children }: { children: ReactNode }) => {
   const [analysisData, setAnalysisData] = useState<AnalyzeResponse | null>(null);
   const [reportData, setReportData] = useState<ReportResponse | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
   const [requestBody, setRequestBody] = useState<Record<string, unknown> | null>(null);
 
   return (
-    <MRVContext.Provider value={{ analysisData, setAnalysisData, reportData, setReportData, requestBody, setRequestBody }}>
+    <MRVContext.Provider value={{ analysisData, setAnalysisData, reportData, setReportData, reportLoading, setReportLoading, requestBody, setRequestBody }}>
       {children}
     </MRVContext.Provider>
   );

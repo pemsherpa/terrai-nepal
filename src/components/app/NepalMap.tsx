@@ -86,6 +86,7 @@ interface NepalMapProps {
   circleRadiusKm?: number;
   drawMode?: boolean;
   onPolygonCreated?: (geojson: GeoJSON.GeoJSON) => void;
+  tileUrl?: string;
 }
 
 export function NepalMap({
@@ -95,6 +96,7 @@ export function NepalMap({
   circleRadiusKm = 5,
   drawMode = false,
   onPolygonCreated,
+  tileUrl,
 }: NepalMapProps) {
   return (
     <Card className="shadow-card overflow-hidden">
@@ -110,6 +112,12 @@ export function NepalMap({
             attribution='&copy; <a href="https://www.esri.com">Esri</a>'
             url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
           />
+          {tileUrl && (
+            <TileLayer
+              url={tileUrl}
+              opacity={0.85}
+            />
+          )}
           {markers.map((m, i) => (
             <Marker key={i} position={[m.lat, m.lon]}>
               <Popup>

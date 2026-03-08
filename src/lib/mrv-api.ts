@@ -37,6 +37,7 @@ export interface AnalyzeResponse {
   trend_data: Array<{ year: number; ndvi: number }>;
   monthly_series: Array<{ month: string; ndvi: number }>;
   area_ha: number;
+  tile_url?: string;
   [key: string]: unknown;
 }
 

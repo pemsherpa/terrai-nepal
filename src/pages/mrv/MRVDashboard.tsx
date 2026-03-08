@@ -12,6 +12,10 @@ import {
 import { useMRV } from "@/contexts/MRVContext";
 import { analyzeForest, generateReport } from "@/lib/mrv-api";
 import { useToast } from "@/hooks/use-toast";
+import { useCreateBiomassEntry } from "@/hooks/use-biomass-history";
+import { useProjects } from "@/hooks/use-projects";
+import { useAuth } from "@/contexts/AuthContext";
+import { NepalMap } from "@/components/app/NepalMap";
 
 const FOREST_TYPES: Record<string, string> = {
   "Tropical Moist": "tropical_moist",

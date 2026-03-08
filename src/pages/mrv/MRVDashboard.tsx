@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Leaf, TrendingUp, TrendingDown, MapPin, TreePine, Activity, Layers } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Leaf, TrendingUp, TrendingDown, MapPin, TreePine, Activity, Layers, Loader2 } from "lucide-react";
 import { useState } from "react";
 import {
   AreaChart, Area, BarChart, Bar, Cell,

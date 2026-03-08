@@ -69,7 +69,7 @@ const MRVDashboard = () => {
   const isPositive = changePercent > 0;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="space-y-6">
       <div>
         <h1 className="font-serif text-2xl text-foreground">Forest Health Dashboard</h1>
         <p className="text-sm text-muted-foreground mt-1">Analyse satellite-derived vegetation indices and carbon stocks</p>

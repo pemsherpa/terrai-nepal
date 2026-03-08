@@ -18,6 +18,7 @@ import { useCreateBiomassEntry } from "@/hooks/use-biomass-history";
 import { useProjects } from "@/hooks/use-projects";
 import { useAuth } from "@/contexts/AuthContext";
 import { NepalMap } from "@/components/app/NepalMap";
+import { DrawMap } from "@/components/app/DrawMap";
 import { NEPAL_DISTRICTS, COMMUNITY_FORESTS } from "@/lib/nepal-locations";
 
 const FOREST_TYPES: Record<string, string> = {

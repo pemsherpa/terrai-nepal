@@ -321,6 +321,7 @@ const MRVDashboard = () => {
           circleRadiusKm={bufKm}
           drawMode={locationSource === "draw"}
           onPolygonCreated={setCustomGeojson}
+          tileUrl={d?.tile_url}
         />
       )}
 

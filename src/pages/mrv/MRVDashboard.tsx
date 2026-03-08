@@ -72,9 +72,11 @@ const MRVDashboard = () => {
       }
 
       // Trigger report generation in background
+      setReportLoading(true);
       generateReport(data as unknown as Record<string, unknown>)
         .then(setReportData)
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => setReportLoading(false));
     } catch (err) {
       toast({
         title: "Analysis Failed",

@@ -20,12 +20,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/about" element={<About />} />
-          <Route path="/mrv" element={<MRVLayout />}>
-            <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<MRVDashboard />} />
-            <Route path="report" element={<MRVReport />} />
-            <Route path="export" element={<MRVExport />} />
-          </Route>
+          <Route path="/mrv" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

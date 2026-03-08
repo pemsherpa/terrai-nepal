@@ -136,6 +136,18 @@ const MRVDashboard = () => {
             </Select>
           </div>
         </div>
+        {/* Project selector for saving */}
+        {projects && projects.length > 0 && (
+          <div className="mt-4 space-y-1.5">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Save to Project</Label>
+            <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+              <SelectTrigger className="max-w-xs"><SelectValue placeholder="Select a project (optional)" /></SelectTrigger>
+              <SelectContent>
+                {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div className="mt-5 flex justify-end">
           <Button
             onClick={handleAnalyse}

@@ -57,6 +57,20 @@ const MRVDashboard = () => {
       setAnalysisData(data);
       setRequestBody(body as unknown as Record<string, unknown>);
 
+      // Save to DB if a project is selected
+      if (selectedProjectId && user) {
+        try {
+          await createBiomass.mutateAsync({
+            project_id: selectedProjectId,
+            carbon_density: data.total_carbon / (data.area_ha || 1),
+            health_score: data.ndvi_year2 * 100,
+          });
+          toast({ title: "Analysis saved", description: "Results stored to your project." });
+        } catch {
+          // Non-blocking — analysis still succeeded
+        }
+      }
+
       // Trigger report generation in background
       generateReport(data as unknown as Record<string, unknown>)
         .then(setReportData)

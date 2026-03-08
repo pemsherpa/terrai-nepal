@@ -4,7 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Shield, CheckCircle, AlertTriangle, FileText, ListChecks, Loader2 } from "lucide-react";
 import { useMRV } from "@/contexts/MRVContext";
-import { generateReport } from "@/lib/mrv-api";
+import { generateReport, type ReportRequest } from "@/lib/mrv-api";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -16,15 +16,30 @@ const riskColorMap: Record<string, string> = {
 };
 
 const MRVReport = () => {
-  const { analysisData, reportData, setReportData } = useMRV();
+  const { analysisData, reportData, setReportData, requestBody, locationName } = useMRV();
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
   const handleGenerate = async () => {
-    if (!analysisData) return;
+    if (!analysisData || !requestBody) return;
     setLoading(true);
     try {
-      const data = await generateReport(analysisData as unknown as Record<string, unknown>);
+      const body: ReportRequest = {
+        location: locationName,
+        lat: requestBody.lat,
+        lon: requestBody.lon,
+        year1: requestBody.year1,
+        year2: requestBody.year2,
+        start_month: requestBody.start_month,
+        end_month: requestBody.end_month,
+        ndvi_year1: analysisData.ndvi_year1,
+        ndvi_year2: analysisData.ndvi_year2,
+        change_pct: analysisData.change_pct,
+        carbon_estimate: analysisData.carbon_estimate,
+        trend_data: analysisData.trend_data,
+        monthly_series: analysisData.monthly_series,
+      };
+      const data = await generateReport(body);
       setReportData(data);
     } catch (err) {
       toast({

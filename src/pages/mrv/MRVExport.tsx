@@ -5,13 +5,13 @@ import { Separator } from "@/components/ui/separator";
 import { Download, FileText, MapPin, Leaf, Calendar, CheckCircle, TreePine } from "lucide-react";
 import { useState } from "react";
 import { useMRV } from "@/contexts/MRVContext";
-import { downloadPdf } from "@/lib/mrv-api";
+import { downloadPdf, type PdfRequest } from "@/lib/mrv-api";
 import { useToast } from "@/hooks/use-toast";
 
 const MRVExport = () => {
   const [downloading, setDownloading] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
-  const { analysisData, reportData, reportLoading, requestBody } = useMRV();
+  const { analysisData, reportData, reportLoading, requestBody, locationName } = useMRV();
   const { toast } = useToast();
 
   if (!analysisData) {
@@ -24,12 +24,42 @@ const MRVExport = () => {
   }
 
   const d = analysisData;
+  const ce = d.carbon_estimate;
 
   const handleDownload = async () => {
+    if (!reportData || !requestBody) return;
     setDownloading(true);
     setDownloaded(false);
     try {
-      await downloadPdf({ ...requestBody, ...d } as Record<string, unknown>);
+      const pdfBody: PdfRequest = {
+        location: locationName,
+        lat: requestBody.lat,
+        lon: requestBody.lon,
+        year1: requestBody.year1,
+        year2: requestBody.year2,
+        start_month: requestBody.start_month,
+        end_month: requestBody.end_month,
+        ndvi_year1: d.ndvi_year1,
+        ndvi_year2: d.ndvi_year2,
+        change_pct: d.change_pct,
+        carbon_estimate: d.carbon_estimate,
+        trend_data: d.trend_data,
+        monthly_series: d.monthly_series,
+        buf_km: requestBody.buf_km,
+        area_ha: d.area_ha,
+        report_data: {
+          executive_summary: reportData.executive_summary,
+          key_findings: reportData.key_findings,
+          vegetation_analysis: reportData.vegetation_analysis ?? "",
+          carbon_implications: reportData.carbon_implications ?? "",
+          risk_level: reportData.risk_level,
+          risk_assessment: reportData.risk_assessment ?? "",
+          recommendations: reportData.recommendations,
+          data_confidence: reportData.data_confidence ?? "",
+          next_monitoring: reportData.next_monitoring ?? "",
+        },
+      };
+      await downloadPdf(pdfBody);
       setDownloaded(true);
     } catch (err) {
       toast({
@@ -43,12 +73,12 @@ const MRVExport = () => {
   };
 
   const summaryItems = [
-    { icon: MapPin, label: "Coordinates", value: `${requestBody?.lat ?? "—"}°N, ${requestBody?.lon ?? "—"}°E` },
-    { icon: Leaf, label: "Forest Type", value: String(requestBody?.forest_type ?? "—") },
+    { icon: MapPin, label: "Location", value: locationName || `${requestBody?.lat ?? "—"}°N, ${requestBody?.lon ?? "—"}°E` },
+    { icon: Leaf, label: "Forest Type", value: ce?.ftype ?? String(requestBody?.forest_type ?? "—") },
     { icon: Calendar, label: "Period", value: `${requestBody?.year1 ?? "—"} → ${requestBody?.year2 ?? "—"}` },
-    { icon: Leaf, label: "NDVI Change", value: `${d.change_percent > 0 ? "+" : ""}${d.change_percent?.toFixed(1) ?? "—"}%` },
-    { icon: Leaf, label: "Total Carbon", value: `${(d.total_carbon ?? 0).toLocaleString()} tonnes C` },
-    { icon: Leaf, label: "CO₂ Equivalent", value: `${(d.total_co2e ?? 0).toLocaleString()} tonnes CO₂e` },
+    { icon: Leaf, label: "NDVI Change", value: `${d.change_pct > 0 ? "+" : ""}${d.change_pct?.toFixed(1) ?? "—"}%` },
+    { icon: Leaf, label: "Total Carbon", value: `${(ce?.total_c ?? 0).toLocaleString()} tonnes C` },
+    { icon: Leaf, label: "CO₂ Equivalent", value: `${(ce?.total_co2 ?? 0).toLocaleString()} tonnes CO₂e` },
     { icon: MapPin, label: "Area", value: `${d.area_ha ?? "—"} hectares` },
   ];
 

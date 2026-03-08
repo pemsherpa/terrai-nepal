@@ -11,12 +11,13 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { useMRV } from "@/contexts/MRVContext";
-import { analyzeForest, generateReport } from "@/lib/mrv-api";
+import { analyzeForest, generateReport, type AnalyzeRequest, type ReportRequest } from "@/lib/mrv-api";
 import { useToast } from "@/hooks/use-toast";
 import { useCreateBiomassEntry } from "@/hooks/use-biomass-history";
 import { useProjects } from "@/hooks/use-projects";
 import { useAuth } from "@/contexts/AuthContext";
 import { NepalMap } from "@/components/app/NepalMap";
+import { NEPAL_DISTRICTS, COMMUNITY_FORESTS } from "@/lib/nepal-locations";
 
 const FOREST_TYPES: Record<string, string> = {
   "Tropical Moist": "tropical_moist",
@@ -25,25 +26,42 @@ const FOREST_TYPES: Record<string, string> = {
   "Alpine Scrub": "alpine_scrub",
 };
 
+type LocationSource = "district" | "community" | "custom";
+
 const MRVDashboard = () => {
-  const [lat, setLat] = useState("27.5");
-  const [lon, setLon] = useState("84.3");
+  const [locationSource, setLocationSource] = useState<LocationSource>("district");
+  const [selectedLocation, setSelectedLocation] = useState("");
+  const [customLat, setCustomLat] = useState("27.5");
+  const [customLon, setCustomLon] = useState("84.3");
   const [forestType, setForestType] = useState("Tropical Moist");
   const [baselineYear, setBaselineYear] = useState("2022");
   const [comparisonYear, setComparisonYear] = useState("2024");
   const [loading, setLoading] = useState(false);
-  const { analysisData, setAnalysisData, setReportData, setRequestBody, reportLoading, setReportLoading } = useMRV();
+  const { analysisData, setAnalysisData, setReportData, setRequestBody, setLocationName, reportLoading, setReportLoading } = useMRV();
   const { toast } = useToast();
   const createBiomass = useCreateBiomassEntry();
   const { user } = useAuth();
   const { data: projects } = useProjects();
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
 
+  const getCoordinates = (): { lat: number; lon: number; name: string } => {
+    if (locationSource === "district" && selectedLocation) {
+      const loc = NEPAL_DISTRICTS[selectedLocation];
+      return { lat: loc.lat, lon: loc.lon, name: selectedLocation };
+    }
+    if (locationSource === "community" && selectedLocation) {
+      const loc = COMMUNITY_FORESTS[selectedLocation];
+      return { lat: loc.lat, lon: loc.lon, name: selectedLocation };
+    }
+    return { lat: parseFloat(customLat), lon: parseFloat(customLon), name: `${customLat}°N, ${customLon}°E` };
+  };
+
   const handleAnalyse = async () => {
     setLoading(true);
-    const body = {
-      lat: parseFloat(lat),
-      lon: parseFloat(lon),
+    const coords = getCoordinates();
+    const body: AnalyzeRequest = {
+      lat: coords.lat,
+      lon: coords.lon,
       buf_km: 5,
       year1: parseInt(baselineYear),
       year2: parseInt(comparisonYear),
@@ -56,25 +74,42 @@ const MRVDashboard = () => {
     try {
       const data = await analyzeForest(body);
       setAnalysisData(data);
-      setRequestBody(body as unknown as Record<string, unknown>);
+      setRequestBody(body);
+      setLocationName(coords.name);
 
       // Save to DB if a project is selected
       if (selectedProjectId && user) {
         try {
+          const ce = data.carbon_estimate;
           await createBiomass.mutateAsync({
             project_id: selectedProjectId,
-            carbon_density: data.total_carbon / (data.area_ha || 1),
-            health_score: data.ndvi_year2 * 100,
+            carbon_density: ce ? ce.c_ha : 0,
+            health_score: (data.ndvi_year2 ?? 0) * 100,
           });
           toast({ title: "Analysis saved", description: "Results stored to your project." });
         } catch {
-          // Non-blocking — analysis still succeeded
+          // Non-blocking
         }
       }
 
-      // Trigger report generation in background
+      // Build report request and trigger in background
+      const reportBody: ReportRequest = {
+        location: coords.name,
+        lat: coords.lat,
+        lon: coords.lon,
+        year1: body.year1,
+        year2: body.year2,
+        start_month: body.start_month,
+        end_month: body.end_month,
+        ndvi_year1: data.ndvi_year1,
+        ndvi_year2: data.ndvi_year2,
+        change_pct: data.change_pct,
+        carbon_estimate: data.carbon_estimate,
+        trend_data: data.trend_data,
+        monthly_series: data.monthly_series,
+      };
       setReportLoading(true);
-      generateReport(data as unknown as Record<string, unknown>)
+      generateReport(reportBody)
         .then(setReportData)
         .catch(() => {})
         .finally(() => setReportLoading(false));
@@ -90,8 +125,14 @@ const MRVDashboard = () => {
   };
 
   const d = analysisData;
-  const changePercent = d?.change_percent ?? 0;
-  const isPositive = changePercent > 0;
+  const changePct = d?.change_pct ?? 0;
+  const isPositive = changePct > 0;
+  const ce = d?.carbon_estimate;
+  const coords = getCoordinates();
+
+  const locationOptions = locationSource === "district"
+    ? Object.keys(NEPAL_DISTRICTS)
+    : Object.keys(COMMUNITY_FORESTS);
 
   return (
     <div className="space-y-6">
@@ -101,16 +142,51 @@ const MRVDashboard = () => {
       </div>
 
       {/* Input Form */}
-      <Card className="p-6 shadow-card">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+      <Card className="p-6 shadow-card space-y-4">
+        {/* Location source selector */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Latitude</Label>
-            <Input value={lat} onChange={(e) => setLat(e.target.value)} placeholder="27.5" />
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Location Source</Label>
+            <Select value={locationSource} onValueChange={(v) => { setLocationSource(v as LocationSource); setSelectedLocation(""); }}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="district">Nepal District</SelectItem>
+                <SelectItem value="community">Community Forest</SelectItem>
+                <SelectItem value="custom">Custom Coordinates</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Longitude</Label>
-            <Input value={lon} onChange={(e) => setLon(e.target.value)} placeholder="84.3" />
-          </div>
+
+          {locationSource !== "custom" ? (
+            <div className="space-y-1.5 md:col-span-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {locationSource === "district" ? "District" : "Community Forest"}
+              </Label>
+              <Select value={selectedLocation} onValueChange={setSelectedLocation}>
+                <SelectTrigger><SelectValue placeholder={`Select a ${locationSource === "district" ? "district" : "community forest"}…`} /></SelectTrigger>
+                <SelectContent className="max-h-64">
+                  {locationOptions.map((name) => (
+                    <SelectItem key={name} value={name}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Latitude</Label>
+                <Input value={customLat} onChange={(e) => setCustomLat(e.target.value)} placeholder="27.5" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Longitude</Label>
+                <Input value={customLon} onChange={(e) => setCustomLon(e.target.value)} placeholder="84.3" />
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Analysis params */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Forest Type</Label>
             <Select value={forestType} onValueChange={setForestType}>
@@ -139,9 +215,10 @@ const MRVDashboard = () => {
             </Select>
           </div>
         </div>
+
         {/* Project selector for saving */}
         {projects && projects.length > 0 && (
-          <div className="mt-4 space-y-1.5">
+          <div className="space-y-1.5">
             <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Save to Project</Label>
             <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
               <SelectTrigger className="max-w-xs"><SelectValue placeholder="Select a project (optional)" /></SelectTrigger>
@@ -151,10 +228,19 @@ const MRVDashboard = () => {
             </Select>
           </div>
         )}
-        <div className="mt-5 flex justify-end">
+
+        {/* Selected location preview */}
+        {(locationSource !== "custom" && selectedLocation) && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
+            <MapPin className="w-3.5 h-3.5" />
+            <span>{selectedLocation} — {coords.lat.toFixed(4)}°N, {coords.lon.toFixed(4)}°E</span>
+          </div>
+        )}
+
+        <div className="flex justify-end">
           <Button
             onClick={handleAnalyse}
-            disabled={loading}
+            disabled={loading || (locationSource !== "custom" && !selectedLocation)}
             className="bg-primary text-primary-foreground hover:bg-primary/90 px-8"
           >
             {loading ? (
@@ -187,7 +273,7 @@ const MRVDashboard = () => {
       ) : !d ? (
         <div className="text-center py-20">
           <TreePine className="w-16 h-16 mx-auto text-muted-foreground/20 mb-4" />
-          <p className="text-muted-foreground">Enter coordinates and click <strong>Analyse Forest</strong> to begin.</p>
+          <p className="text-muted-foreground">Select a location and click <strong>Analyse Forest</strong> to begin.</p>
         </div>
       ) : (
         <div className="space-y-6 animate-fade-in-up">
@@ -198,12 +284,13 @@ const MRVDashboard = () => {
               <span className="text-sm text-muted-foreground">AI Due Diligence Report is generating in the background…</span>
             </Card>
           )}
+
           {/* Metrics Row */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
               { label: `NDVI ${baselineYear}`, value: d.ndvi_year1?.toFixed(4) ?? "—", icon: Activity, color: "text-foreground" },
               { label: `NDVI ${comparisonYear}`, value: d.ndvi_year2?.toFixed(4) ?? "—", icon: Layers, color: "text-foreground" },
-              { label: "Change", value: `${isPositive ? "+" : ""}${changePercent.toFixed(1)}%`, icon: isPositive ? TrendingUp : TrendingDown, color: isPositive ? "text-accent" : "text-destructive" },
+              { label: "Change", value: `${isPositive ? "+" : ""}${changePct.toFixed(1)}%`, icon: isPositive ? TrendingUp : TrendingDown, color: isPositive ? "text-accent" : "text-destructive" },
               { label: "Total Area", value: `${d.area_ha ?? "—"} ha`, icon: MapPin, color: "text-foreground" },
             ].map((m) => (
               <Card key={m.label} className="p-5 shadow-card">
@@ -218,41 +305,43 @@ const MRVDashboard = () => {
 
           {/* Interactive Nepal Map */}
           <NepalMap
-            markers={[{ lat: parseFloat(lat), lon: parseFloat(lon), label: `Analysis Point (${lat}°N, ${lon}°E)` }]}
+            markers={[{ lat: coords.lat, lon: coords.lon, label: `${coords.name}` }]}
           />
 
           {/* Carbon Stock */}
-          <Card className="bg-primary p-6 shadow-card border-0">
-            <h3 className="font-serif text-lg text-primary-foreground/80 mb-4 flex items-center gap-2">
-              <Leaf className="w-5 h-5" /> Carbon Stock Estimate
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[
-                { label: "Above-Ground Biomass", val: `${d.agb_ha ?? "—"}`, unit: "tonnes/ha" },
-                { label: "Total Carbon Stock", val: (d.total_carbon ?? 0).toLocaleString(), unit: "tonnes C" },
-                { label: "Total CO₂ Equivalent", val: (d.total_co2e ?? 0).toLocaleString(), unit: "tonnes CO₂e" },
-                { label: "Area Analysed", val: `${d.area_ha ?? "—"}`, unit: "hectares" },
-              ].map((c) => (
-                <div key={c.label} className="bg-primary-foreground/10 rounded-lg p-4 text-center">
-                  <div className="text-[10px] uppercase tracking-widest text-primary-foreground/50 mb-1 font-semibold">{c.label}</div>
-                  <div className="font-serif text-2xl text-primary-foreground">{c.val}</div>
-                  <div className="text-xs text-primary-foreground/40 mt-0.5">{c.unit}</div>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-primary-foreground/30 mt-4 italic">
-              ⚠️ Satellite-based estimates · Nepal FAO/ICIMOD literature values · Field calibration required
-            </p>
-          </Card>
+          {ce && (
+            <Card className="bg-primary p-6 shadow-card border-0">
+              <h3 className="font-serif text-lg text-primary-foreground/80 mb-4 flex items-center gap-2">
+                <Leaf className="w-5 h-5" /> Carbon Stock Estimate
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { label: "Above-Ground Biomass", val: `${ce.agb_ha?.toFixed(1) ?? "—"}`, unit: "tonnes/ha" },
+                  { label: "Total Carbon Stock", val: (ce.total_c ?? 0).toLocaleString(), unit: "tonnes C" },
+                  { label: "Total CO₂ Equivalent", val: (ce.total_co2 ?? 0).toLocaleString(), unit: "tonnes CO₂e" },
+                  { label: "Area Analysed", val: `${ce.area_ha ?? "—"}`, unit: "hectares" },
+                ].map((c) => (
+                  <div key={c.label} className="bg-primary-foreground/10 rounded-lg p-4 text-center">
+                    <div className="text-[10px] uppercase tracking-widest text-primary-foreground/50 mb-1 font-semibold">{c.label}</div>
+                    <div className="font-serif text-2xl text-primary-foreground">{c.val}</div>
+                    <div className="text-xs text-primary-foreground/40 mt-0.5">{c.unit}</div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-primary-foreground/30 mt-4 italic">
+                ⚠️ Satellite-based estimates · Nepal FAO/ICIMOD literature values · Field calibration required
+              </p>
+            </Card>
+          )}
 
           {/* Charts */}
-          {(d.ndvi_trend?.length || d.monthly_ndvi?.length) && (
+          {(d.trend_data?.length > 0 || d.monthly_series?.length > 0) && (
             <div className="grid lg:grid-cols-2 gap-6">
-              {d.ndvi_trend?.length > 0 && (
+              {d.trend_data?.length > 0 && (
                 <Card className="p-5 shadow-card">
                   <h3 className="font-serif text-base text-foreground mb-4">Multi-Year NDVI Trend</h3>
                   <ResponsiveContainer width="100%" height={260}>
-                    <AreaChart data={d.ndvi_trend}>
+                    <AreaChart data={d.trend_data}>
                       <defs>
                         <linearGradient id="mrvNdviGrad" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="hsl(153,40%,42%)" stopOpacity={0.3} />
@@ -269,18 +358,18 @@ const MRVDashboard = () => {
                 </Card>
               )}
 
-              {d.monthly_ndvi?.length > 0 && (
+              {d.monthly_series?.length > 0 && (
                 <Card className="p-5 shadow-card">
                   <h3 className="font-serif text-base text-foreground mb-4">Monthly NDVI ({comparisonYear})</h3>
                   <ResponsiveContainer width="100%" height={260}>
-                    <BarChart data={d.monthly_ndvi}>
+                    <BarChart data={d.monthly_series}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(140,25%,88%)" />
                       <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                       <YAxis domain={["auto", "auto"]} tick={{ fontSize: 12 }} />
                       <Tooltip contentStyle={{ borderRadius: 8, fontSize: 13 }} />
                       <Bar dataKey="ndvi" radius={[4, 4, 0, 0]}>
-                        {d.monthly_ndvi.map((entry, i) => (
-                          <Cell key={i} fill={entry.ndvi > 0.65 ? "hsl(153,40%,42%)" : entry.ndvi > 0.55 ? "hsl(153,30%,55%)" : "hsl(45,50%,55%)"} />
+                        {d.monthly_series.map((_entry, i) => (
+                          <Cell key={i} fill={_entry.ndvi > 0.65 ? "hsl(153,40%,42%)" : _entry.ndvi > 0.55 ? "hsl(153,30%,55%)" : "hsl(45,50%,55%)"} />
                         ))}
                       </Bar>
                     </BarChart>

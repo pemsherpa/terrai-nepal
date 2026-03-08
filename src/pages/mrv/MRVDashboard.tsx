@@ -12,6 +12,10 @@ import {
 import { useMRV } from "@/contexts/MRVContext";
 import { analyzeForest, generateReport } from "@/lib/mrv-api";
 import { useToast } from "@/hooks/use-toast";
+import { useCreateBiomassEntry } from "@/hooks/use-biomass-history";
+import { useProjects } from "@/hooks/use-projects";
+import { useAuth } from "@/contexts/AuthContext";
+import { NepalMap } from "@/components/app/NepalMap";
 
 const FOREST_TYPES: Record<string, string> = {
   "Tropical Moist": "tropical_moist",
@@ -29,6 +33,10 @@ const MRVDashboard = () => {
   const [loading, setLoading] = useState(false);
   const { analysisData, setAnalysisData, setReportData, setRequestBody } = useMRV();
   const { toast } = useToast();
+  const createBiomass = useCreateBiomassEntry();
+  const { user } = useAuth();
+  const { data: projects } = useProjects();
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
 
   const handleAnalyse = async () => {
     setLoading(true);
@@ -48,6 +56,20 @@ const MRVDashboard = () => {
       const data = await analyzeForest(body);
       setAnalysisData(data);
       setRequestBody(body as unknown as Record<string, unknown>);
+
+      // Save to DB if a project is selected
+      if (selectedProjectId && user) {
+        try {
+          await createBiomass.mutateAsync({
+            project_id: selectedProjectId,
+            carbon_density: data.total_carbon / (data.area_ha || 1),
+            health_score: data.ndvi_year2 * 100,
+          });
+          toast({ title: "Analysis saved", description: "Results stored to your project." });
+        } catch {
+          // Non-blocking — analysis still succeeded
+        }
+      }
 
       // Trigger report generation in background
       generateReport(data as unknown as Record<string, unknown>)
@@ -114,6 +136,18 @@ const MRVDashboard = () => {
             </Select>
           </div>
         </div>
+        {/* Project selector for saving */}
+        {projects && projects.length > 0 && (
+          <div className="mt-4 space-y-1.5">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Save to Project</Label>
+            <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+              <SelectTrigger className="max-w-xs"><SelectValue placeholder="Select a project (optional)" /></SelectTrigger>
+              <SelectContent>
+                {projects.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div className="mt-5 flex justify-end">
           <Button
             onClick={handleAnalyse}
@@ -159,21 +193,10 @@ const MRVDashboard = () => {
             ))}
           </div>
 
-          {/* Map Placeholder */}
-          <Card className="shadow-card overflow-hidden">
-            <div className="bg-muted h-80 flex items-center justify-center relative">
-              <div className="absolute inset-0 opacity-10" style={{
-                backgroundImage: "radial-gradient(circle at 30% 40%, hsl(var(--accent)) 0%, transparent 50%), radial-gradient(circle at 70% 60%, hsl(var(--primary)) 0%, transparent 50%)"
-              }} />
-              <div className="text-center z-10">
-                <MapPin className="w-10 h-10 mx-auto text-muted-foreground/40 mb-2" />
-                <p className="text-sm text-muted-foreground font-medium">Interactive Satellite Map</p>
-                <p className="text-xs text-muted-foreground/60 mt-1">
-                  {lat}°N, {lon}°E · Leaflet/Mapbox integration ready
-                </p>
-              </div>
-            </div>
-          </Card>
+          {/* Interactive Nepal Map */}
+          <NepalMap
+            markers={[{ lat: parseFloat(lat), lon: parseFloat(lon), label: `Analysis Point (${lat}°N, ${lon}°E)` }]}
+          />
 
           {/* Carbon Stock */}
           <Card className="bg-primary p-6 shadow-card border-0">

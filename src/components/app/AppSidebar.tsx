@@ -1,6 +1,7 @@
-import { BarChart3, TreePine, FileCheck, Settings, Home } from "lucide-react";
+import { BarChart3, TreePine, FileCheck, Settings, Home, User, LogOut } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Sidebar,
   SidebarContent,
@@ -26,6 +27,7 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
   const location = useLocation();
+  const { user, signOut } = useAuth();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -78,11 +80,25 @@ export function AppSidebar() {
       <SidebarFooter className="p-3">
         <SidebarMenu>
           <SidebarMenuItem>
+            <SidebarMenuButton asChild tooltip="Profile" isActive={isActive("/app/profile")}>
+              <NavLink to="/app/profile" className="hover:bg-sidebar-accent/50">
+                <User className="h-4 w-4" />
+                {!collapsed && <span className="text-sm">{user?.email?.split("@")[0] ?? "Profile"}</span>}
+              </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
             <SidebarMenuButton asChild tooltip="Back to Home">
               <NavLink to="/" className="hover:bg-sidebar-accent/50 text-sidebar-foreground/60">
                 <Home className="h-4 w-4" />
                 {!collapsed && <span className="text-sm">Back to Home</span>}
               </NavLink>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton tooltip="Sign Out" onClick={signOut} className="hover:bg-sidebar-accent/50 text-sidebar-foreground/60 cursor-pointer">
+              <LogOut className="h-4 w-4" />
+              {!collapsed && <span className="text-sm">Sign Out</span>}
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

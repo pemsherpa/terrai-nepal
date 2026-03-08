@@ -87,7 +87,7 @@ const MRVExport = () => {
         </p>
         <Button
           onClick={handleDownload}
-          disabled={downloading}
+          disabled={downloading || reportLoading || !reportData}
           size="lg"
           className="bg-primary text-primary-foreground hover:bg-primary/90 px-10 text-base"
         >

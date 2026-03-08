@@ -112,6 +112,12 @@ export function NepalMap({
             attribution='&copy; <a href="https://www.esri.com">Esri</a>'
             url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
           />
+          {tileUrl && (
+            <TileLayer
+              url={tileUrl}
+              opacity={0.85}
+            />
+          )}
           {markers.map((m, i) => (
             <Marker key={i} position={[m.lat, m.lon]}>
               <Popup>

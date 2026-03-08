@@ -9,7 +9,7 @@ const Navbar = () => {
 
   const links = [
     { to: "/", label: "Home" },
-    { to: "/dashboard", label: "Dashboard" },
+    { to: "/app/dashboard", label: "Dashboard" },
     { to: "/about", label: "About" },
   ];
 

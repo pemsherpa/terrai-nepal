@@ -14,16 +14,152 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      biomass_history: {
+        Row: {
+          carbon_density: number
+          created_at: string
+          health_score: number
+          id: string
+          project_id: string
+          recorded_at: string
+          source_url: string | null
+        }
+        Insert: {
+          carbon_density: number
+          created_at?: string
+          health_score: number
+          id?: string
+          project_id: string
+          recorded_at?: string
+          source_url?: string | null
+        }
+        Update: {
+          carbon_density?: number
+          created_at?: string
+          health_score?: number
+          id?: string
+          project_id?: string
+          recorded_at?: string
+          source_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "biomass_history_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          area_hectares: number
+          created_at: string
+          id: string
+          latitude: number
+          longitude: number
+          name: string
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          area_hectares?: number
+          created_at?: string
+          id?: string
+          latitude: number
+          longitude: number
+          name: string
+          owner_id: string
+          updated_at?: string
+        }
+        Update: {
+          area_hectares?: number
+          created_at?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          name?: string
+          owner_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      verification_reports: {
+        Row: {
+          created_at: string
+          id: string
+          integrity_seal_hash: string | null
+          pdf_url: string | null
+          project_id: string
+          status: Database["public"]["Enums"]["verification_status"]
+          updated_at: string
+          verifier_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          integrity_seal_hash?: string | null
+          pdf_url?: string | null
+          project_id: string
+          status?: Database["public"]["Enums"]["verification_status"]
+          updated_at?: string
+          verifier_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          integrity_seal_hash?: string | null
+          pdf_url?: string | null
+          project_id?: string
+          status?: Database["public"]["Enums"]["verification_status"]
+          updated_at?: string
+          verifier_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verification_reports_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "validator" | "user"
+      verification_status: "pending" | "approved" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +286,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "validator", "user"],
+      verification_status: ["pending", "approved", "rejected"],
+    },
   },
 } as const

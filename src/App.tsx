@@ -7,10 +7,6 @@ import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import About from "./pages/About";
 import NotFound from "./pages/NotFound";
-import MRVLayout from "./components/mrv/MRVLayout";
-import MRVDashboard from "./pages/mrv/MRVDashboard";
-import MRVReport from "./pages/mrv/MRVReport";
-import MRVExport from "./pages/mrv/MRVExport";
 
 const queryClient = new QueryClient();
 
@@ -24,12 +20,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/about" element={<About />} />
-          <Route path="/mrv" element={<MRVLayout />}>
-            <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<MRVDashboard />} />
-            <Route path="report" element={<MRVReport />} />
-            <Route path="export" element={<MRVExport />} />
-          </Route>
+          <Route path="/mrv" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

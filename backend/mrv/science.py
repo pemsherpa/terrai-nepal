@@ -82,6 +82,8 @@ DISTRICT_BASELINE = {
     "Nepal (National Avg)": {"ndvi": 0.58, "forest_cover_pct": 45},
 }
 
+from pathlib import Path
+
 _GEE_READY = False
 
 
@@ -89,9 +91,39 @@ def ensure_gee() -> None:
     global _GEE_READY
     if _GEE_READY:
         return
-    pid = os.environ.get("GEE_PROJECT_ID")
+    pid = os.environ.get("GEE_PROJECT_ID", "himalayacarbon")
     if not pid:
-        raise RuntimeError("GEE_PROJECT_ID is not configured")
+        raise RuntimeError("GEE_PROJECT_ID is not configured in environment variables.")
+
+    # 1. Service account JSON provided in environment
+    sa_json = os.environ.get("EE_SERVICE_ACCOUNT_JSON") or os.environ.get("EARTHENGINE_SERVICE_ACCOUNT_JSON")
+    if sa_json:
+        try:
+            key_data = json.loads(sa_json)
+            credentials = ee.ServiceAccountCredentials(
+                key_data["client_email"],
+                key_data=key_data,
+            )
+            ee.Initialize(credentials=credentials, project=pid)
+            _GEE_READY = True
+            return
+        except Exception:
+            pass
+
+    # 2. OAuth user credentials JSON string provided in environment (e.g. on Render)
+    ee_creds = (
+        os.environ.get("EE_CREDENTIALS_JSON")
+        or os.environ.get("EARTHENGINE_CREDENTIALS")
+        or os.environ.get("EARTHENGINE_TOKEN")
+    )
+    if ee_creds:
+        try:
+            creds_path = Path.home() / ".config" / "earthengine" / "credentials"
+            creds_path.parent.mkdir(parents=True, exist_ok=True)
+            creds_path.write_text(ee_creds.strip())
+        except Exception:
+            pass
+
     ee.Initialize(project=pid)
     _GEE_READY = True
 

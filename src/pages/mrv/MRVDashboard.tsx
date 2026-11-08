@@ -383,11 +383,12 @@ const MRVDashboard = () => {
     if (!coords) return;
     setVisionLoading(true);
     try {
+      const geojson = buildGeojson() ?? (d as any)?.geojson ?? undefined;
       const result = await inferVision({
         lat: d?.lat ?? coords.lat,
         lon: d?.lon ?? coords.lon,
         buf_km: (d?.buf_km && Number(d.buf_km) > 0) ? Number(d.buf_km) : (bufKm > 0 ? bufKm : 5),
-        geojson: selectedGeojson ?? (d as any)?.geojson ?? undefined,
+        geojson,
         baseline_date: d?.baseline_date ?? baselineDate,
         comparison_date: d?.comparison_date ?? comparisonDate,
       });

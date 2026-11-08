@@ -1,4 +1,4 @@
-import { BarChart3, TreePine, FileCheck, Settings, Home, User, LogOut } from "lucide-react";
+import { BarChart3, TreePine, FileCheck, Settings, Home, User, LogOut, Network, GitCompare, ScanSearch, Database, ExternalLink } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,6 +21,21 @@ const navItems = [
   { title: "My Forests", url: "/app/forests", icon: TreePine },
   { title: "Verification", url: "/app/verification", icon: FileCheck },
   { title: "Settings", url: "/app/settings", icon: Settings },
+];
+
+const visionItems = [
+  { title: "U-Net segmentation", href: "/app/dashboard#unet", icon: ScanSearch, term: "U-Net" },
+  { title: "Siamese change detection", href: "/app/dashboard#siamese", icon: GitCompare, term: "Siamese" },
+  { title: "Vision Transformer", href: "/app/dashboard#vision-transformer", icon: Network, term: "Swin Transformer" },
+];
+
+const datasetItems = [
+  { title: "ICIMOD RDS / SERVIR-HKH", href: "https://rds.icimod.org/" },
+  { title: "FRTC / NLCMS", href: "https://frtc.gov.np/" },
+  { title: "Global Forest Watch", href: "https://www.globalforestwatch.org/" },
+  { title: "NASA FIRMS", href: "https://firms.modaps.eosdis.nasa.gov/" },
+  { title: "BigEarthNet v2 (S1 + S2)", href: "https://zenodo.org/records/10891137" },
+  { title: "EuroSAT (13-band S2)", href: "https://www.tensorflow.org/datasets/catalog/eurosat" },
 ];
 
 export function AppSidebar() {
@@ -69,6 +84,51 @@ export function AppSidebar() {
                       <item.icon className="h-4 w-4" />
                       {!collapsed && <span>{item.title}</span>}
                     </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-sidebar-foreground/40 text-[10px] uppercase tracking-widest">
+            Vision models
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {visionItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild tooltip={item.title}>
+                    <a href={item.href} className="hover:bg-sidebar-accent/50">
+                      <item.icon className="h-4 w-4" />
+                      {!collapsed && <span>{item.title}</span>}
+                    </a>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-sidebar-foreground/40 text-[10px] uppercase tracking-widest">
+            Training datasets
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {datasetItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild tooltip={item.title}>
+                    <a href={item.href} target="_blank" rel="noreferrer" className="hover:bg-sidebar-accent/50">
+                      <Database className="h-4 w-4" />
+                      {!collapsed && (
+                        <>
+                          <span className="truncate">{item.title}</span>
+                          <ExternalLink className="ml-auto h-3 w-3 shrink-0 opacity-60" />
+                        </>
+                      )}
+                    </a>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}

@@ -1,12 +1,19 @@
-import { useEffect, useRef } from "react";
-import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from "react-leaflet";
+import { useEffect, useMemo } from "react";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  Circle,
+  Polygon,
+  useMap,
+  useMapEvents,
+} from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import "leaflet-draw/dist/leaflet.draw.css";
 import { Card } from "@/components/ui/card";
 
-// Fix default marker icon
-delete (L.Icon.Default.prototype as any)._getIconUrl;
+delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
   iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
@@ -19,105 +26,134 @@ const NEPAL_BOUNDS: [[number, number], [number, number]] = [
   [30.447, 88.201],
 ];
 
+export type LatLon = { lat: number; lon: number };
+
 interface MapMarker {
   lat: number;
   lon: number;
   label: string;
 }
 
-function FitNepal() {
+function FitNepal({ disabled }: { disabled?: boolean }) {
   const map = useMap();
   useEffect(() => {
-    map.fitBounds(NEPAL_BOUNDS, { padding: [20, 20] });
-  }, [map]);
+    if (!disabled) map.fitBounds(NEPAL_BOUNDS, { padding: [20, 20] });
+  }, [map, disabled]);
   return null;
 }
 
-/** Draw control – loaded dynamically to avoid SSR issues with leaflet-draw */
-function DrawControl({ onCreated }: { onCreated: (geojson: GeoJSON.GeoJSON) => void }) {
+function FocusOn({ center, zoom }: { center?: LatLon | null; zoom?: number }) {
   const map = useMap();
-  const drawnRef = useRef<L.FeatureGroup | null>(null);
-
   useEffect(() => {
-    // Dynamic import to avoid module-level side effects
-    import("leaflet-draw").then(() => {
-      const drawnItems = new L.FeatureGroup();
-      map.addLayer(drawnItems);
-      drawnRef.current = drawnItems;
+    if (center) map.setView([center.lat, center.lon], zoom ?? 11);
+  }, [map, center?.lat, center?.lon, zoom]);
+  return null;
+}
 
-      const drawControl = new (L.Control as any).Draw({
-        position: "topright",
-        draw: {
-          polygon: {
-            allowIntersection: false,
-            shapeOptions: { color: "#FFD700", fillColor: "#27AE60", fillOpacity: 0.4 },
-          },
-          polyline: false,
-          rectangle: false,
-          circle: false,
-          marker: false,
-          circlemarker: false,
-        },
-        edit: { featureGroup: drawnItems },
-      });
-      map.addControl(drawControl);
+function DrawClickHandler({
+  enabled,
+  onAddPoint,
+}: {
+  enabled: boolean;
+  onAddPoint?: (point: LatLon) => void;
+}) {
+  useMapEvents({
+    click(e) {
+      if (!enabled || !onAddPoint) return;
+      onAddPoint({ lat: e.latlng.lat, lon: e.latlng.lng });
+    },
+  });
+  return null;
+}
 
-      map.on(L.Draw.Event.CREATED as any, (e: any) => {
-        drawnItems.clearLayers();
-        const layer = e.layer;
-        drawnItems.addLayer(layer);
-        onCreated(layer.toGeoJSON());
-      });
-
-      return () => {
-        map.removeControl(drawControl);
-        map.removeLayer(drawnItems);
-      };
+function NdviTileLayer({ urlTemplate }: { urlTemplate?: string | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!urlTemplate) return;
+    const layer = L.tileLayer(urlTemplate, {
+      opacity: 0.65,
+      maxZoom: 18,
+      attribution: "NDVI · Sentinel-2 via GEE",
     });
-  }, [map, onCreated]);
-
+    layer.addTo(map);
+    return () => {
+      map.removeLayer(layer);
+    };
+  }, [map, urlTemplate]);
   return null;
 }
 
 interface NepalMapProps {
   markers?: MapMarker[];
   height?: string;
-  circleCenter?: [number, number] | null;
-  circleRadiusKm?: number;
+  center?: LatLon | null;
+  radiusKm?: number;
+  showCircle?: boolean;
   drawMode?: boolean;
-  onPolygonCreated?: (geojson: GeoJSON.GeoJSON) => void;
-  tileUrl?: string;
+  drawPoints?: LatLon[];
+  onAddDrawPoint?: (point: LatLon) => void;
+  tileUrl?: string | null;
+  fitNepal?: boolean;
 }
 
 export function NepalMap({
   markers = [],
   height = "h-80",
-  circleCenter = null,
-  circleRadiusKm = 5,
+  center = null,
+  radiusKm = 5,
+  showCircle = false,
   drawMode = false,
-  onPolygonCreated,
-  tileUrl,
+  drawPoints = [],
+  onAddDrawPoint,
+  tileUrl = null,
+  fitNepal = true,
 }: NepalMapProps) {
+  const polygonPositions = useMemo(
+    () => drawPoints.map((p) => [p.lat, p.lon] as [number, number]),
+    [drawPoints],
+  );
+
   return (
     <Card className="shadow-card overflow-hidden">
       <div className={height}>
         <MapContainer
-          center={NEPAL_CENTER}
-          zoom={7}
-          className="h-full w-full z-0"
-          scrollWheelZoom={true}
+          center={center ? [center.lat, center.lon] : NEPAL_CENTER}
+          zoom={center ? 11 : 7}
+          className={`h-full w-full z-0 ${drawMode ? "cursor-crosshair" : ""}`}
+          scrollWheelZoom
         >
-          <FitNepal />
+          {fitNepal && !center && <FitNepal />}
+          {center && <FocusOn center={center} zoom={11} />}
           <TileLayer
-            attribution='&copy; <a href="https://www.esri.com">Esri</a>'
+            attribution="Tiles &copy; Esri"
             url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
           />
-          {tileUrl && (
-            <TileLayer
-              url={tileUrl}
-              opacity={0.85}
+          <NdviTileLayer urlTemplate={tileUrl} />
+          <DrawClickHandler enabled={drawMode} onAddPoint={onAddDrawPoint} />
+
+          {showCircle && center && !drawMode && (
+            <Circle
+              center={[center.lat, center.lon]}
+              radius={radiusKm * 1000}
+              pathOptions={{ color: "#FFD700", weight: 2.5, fill: false }}
             />
           )}
+
+          {polygonPositions.length >= 2 && (
+            <Polygon
+              positions={polygonPositions}
+              pathOptions={{ color: "#FFD700", weight: 2.5, fillColor: "#FFD700", fillOpacity: 0.15 }}
+            />
+          )}
+
+          {drawPoints.map((p, i) => (
+            <Marker key={`draw-${i}`} position={[p.lat, p.lon]}>
+              <Popup>
+                Point {i + 1}: {p.lat.toFixed(4)}, {p.lon.toFixed(4)}
+              </Popup>
+            </Marker>
+          ))}
+
           {markers.map((m, i) => (
             <Marker key={i} position={[m.lat, m.lon]}>
               <Popup>
@@ -125,38 +161,7 @@ export function NepalMap({
               </Popup>
             </Marker>
           ))}
-          {circleCenter && (
-            <Circle
-              center={circleCenter}
-              radius={circleRadiusKm * 1000}
-              pathOptions={{
-                color: "#FFD700",
-                fillColor: "#27AE60",
-                fillOpacity: 0.4,
-                weight: 2,
-              }}
-            />
-          )}
-          {drawMode && onPolygonCreated && (
-            <DrawControl onCreated={onPolygonCreated} />
-          )}
         </MapContainer>
-      </div>
-      {/* NDVI Legend */}
-      <div className="px-4 py-3 bg-card border-t border-border">
-        <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-1.5">
-          <span>NDVI Legend</span>
-        </div>
-        <div className="h-3 rounded-full overflow-hidden" style={{
-          background: "linear-gradient(to right, hsl(0 70% 50%), hsl(30 80% 55%), hsl(50 80% 55%), hsl(90 50% 55%), hsl(140 50% 35%))"
-        }} />
-        <div className="flex justify-between text-[9px] text-muted-foreground mt-1">
-          <span>0.0 Bare</span>
-          <span>0.25</span>
-          <span>0.5</span>
-          <span>0.75</span>
-          <span>1.0 Dense</span>
-        </div>
       </div>
     </Card>
   );

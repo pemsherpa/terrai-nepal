@@ -6,11 +6,29 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+bun.lock
+bun.lockb
 
 node_modules
 dist
 dist-ssr
 *.local
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+*.sqlite3
+db.sqlite3
+backend/mrv/artifacts/
+backend/.env
+forest_health_app/venv/
+forest_health_app/.git/
+
+# Environment
+.env
 
 # Editor directories and files
 .vscode/*

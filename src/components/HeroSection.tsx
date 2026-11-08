@@ -28,11 +28,16 @@ const HeroSection = () => (
 
         <div className="flex flex-wrap gap-4 animate-fade-in-up" style={{ animationDelay: "0.3s" }}>
           <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90 px-8 h-12 text-base" asChild>
-            <Link to="/dashboard">
+            <Link to="/auth">
               Try the Demo <ArrowRight className="w-4 h-4 ml-2" />
             </Link>
           </Button>
-          <Button size="lg" variant="outline" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 px-8 h-12 text-base" asChild>
+          <Button
+            size="lg"
+            variant="outline"
+            className="bg-transparent border-2 border-primary-foreground/70 text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground px-8 h-12 text-base shadow-none"
+            asChild
+          >
             <Link to="/about">Learn More</Link>
           </Button>
         </div>

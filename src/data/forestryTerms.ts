@@ -1,0 +1,322 @@
+export interface ForestryTerm {
+  term: string;
+  abbreviation?: string;
+  name: string;
+  category: "Remote Sensing" | "Carbon & Biomass" | "Nepal Forestry" | "Carbon Standards & Policy";
+  definition: string;
+  whyItMatters: string;
+  nepalContext?: string;
+  typicalValue?: string;
+}
+
+export const FORESTRY_TERMS: Record<string, ForestryTerm> = {
+  NDVI: {
+    term: "NDVI",
+    abbreviation: "NDVI",
+    name: "Normalized Difference Vegetation Index",
+    category: "Remote Sensing",
+    definition: "A standardized index (-1 to +1) that measures the greenness and density of plant canopies using how leaves reflect near-infrared light and absorb visible red light.",
+    whyItMatters: "Healthy, thick forest canopies strongly reflect near-infrared light. A drop in NDVI alerts foresters to canopy thinning, disease, fire damage, or illegal logging.",
+    nepalContext: "Dense Sal and pine forests in Nepal typically score between 0.60 and 0.85 during post-monsoon months.",
+    typicalValue: "0.60 – 0.85 (Healthy Forest), 0.20 – 0.40 (Shrub/Sparse), < 0.10 (Bare soil/Water)",
+  },
+  MRV: {
+    term: "MRV",
+    abbreviation: "MRV",
+    name: "Measurement, Reporting, and Verification",
+    category: "Carbon Standards & Policy",
+    definition: "The internationally recognized multi-step process for measuring greenhouse gas reductions, reporting them transparently, and having an independent third-party auditor verify them.",
+    whyItMatters: "Without rigorous MRV, carbon credits cannot be issued or sold on international voluntary or compliance carbon markets.",
+    nepalContext: "TerrAI brings digital, satellite-based MRV directly to Nepal's Community Forest User Groups, cutting verification costs by over 70%.",
+  },
+  AGB: {
+    term: "AGB",
+    abbreviation: "AGB",
+    name: "Above-Ground Biomass",
+    category: "Carbon & Biomass",
+    definition: "The total dry weight of all living plant material above the soil surface — including tree trunks, bark, branches, twigs, and leaves.",
+    whyItMatters: "AGB is the primary reservoir where trees sequester atmospheric carbon. Multiplying AGB by carbon fraction yields total stored carbon.",
+    nepalContext: "Nepal's Forest Research and Training Centre (FRTC) benchmarks Terai Sal forest at ~180-220 t/ha and temperate broadleaf at ~120-160 t/ha.",
+    typicalValue: "100 – 250 metric tonnes per hectare (t/ha)",
+  },
+  BGB: {
+    term: "BGB",
+    abbreviation: "BGB",
+    name: "Below-Ground Biomass",
+    category: "Carbon & Biomass",
+    definition: "All living biomass of live roots beneath the soil, excluding fine roots less than 2mm diameter (which are classified as soil organic matter).",
+    whyItMatters: "Root systems store 20% to 35% as much carbon as the trees above ground, maintaining soil stability on steep Himalayan slopes.",
+    nepalContext: "Calculated in Nepal MRV using root-to-shoot ratios of 0.24 (subtropical) to 0.32 (coniferous montane forests).",
+    typicalValue: "20% – 32% of AGB",
+  },
+  CO2e: {
+    term: "CO2e",
+    abbreviation: "CO₂e",
+    name: "Carbon Dioxide Equivalent",
+    category: "Carbon & Biomass",
+    definition: "The universal metric measure used to compare emissions and carbon storage from various greenhouse gases on the basis of their global-warming potential.",
+    whyItMatters: "Carbon credits are sold in metric tonnes of CO₂e sequestered (1 tonne C = 3.667 tonnes CO₂e).",
+    nepalContext: "Healthy community forests in Nepal sequester between 5 to 15 tonnes of CO₂e per hectare every single year.",
+    typicalValue: "Total Carbon × 3.667 = Total CO₂e",
+  },
+  CFUG: {
+    term: "CFUG",
+    abbreviation: "CFUG",
+    name: "Community Forest User Group",
+    category: "Nepal Forestry",
+    definition: "An autonomous, self-governing local institution registered under Nepal's Forest Act, empowered to protect, manage, and sustainably harvest forest resources.",
+    whyItMatters: "CFUGs are globally celebrated as one of the most successful community conservation models in history, reversing deforestation across Nepal since the 1990s.",
+    nepalContext: "Over 22,000 CFUGs manage more than 2.3 million hectares of Nepal's forests, directly benefiting over 3 million households.",
+  },
+  AOI: {
+    term: "AOI",
+    abbreviation: "AOI",
+    name: "Area of Interest",
+    category: "Remote Sensing",
+    definition: "The specific geographic boundary (polygon or coordinate buffer) selected for satellite data analysis and environmental monitoring.",
+    whyItMatters: "Confining satellite computations to an exact AOI ensures that measurements reflect only the designated forest parcel without outside noise.",
+    nepalContext: "Community forest boundaries are uploaded as GeoJSON polygons or drawn interactively on our high-resolution terrain map.",
+  },
+  "Sentinel-2": {
+    term: "Sentinel-2",
+    abbreviation: "Sentinel-2",
+    name: "European Space Agency Sentinel-2 Constellation",
+    category: "Remote Sensing",
+    definition: "Twin high-resolution optical satellites (Sentinel-2A and 2B) orbiting Earth at 786 km altitude, capturing 13 spectral bands.",
+    whyItMatters: "Provides 10-meter pixel resolution and passes over every forest in Nepal every 5 days, completely free and open-access.",
+    nepalContext: "TerrAI uses Sentinel-2's B4 (Red) and B8 (Near-Infrared) bands for NDVI, and QA60 band for cloud masking in the cloudy Himalayas.",
+  },
+  QA60: {
+    term: "QA60",
+    abbreviation: "QA60",
+    name: "Quality Assessment 60m Band",
+    category: "Remote Sensing",
+    definition: "A cloud and cirrus mask band provided in Sentinel-2 data products identifying opaque clouds and thin cirrus clouds.",
+    whyItMatters: "Himalayan monsoon clouds distort satellite reflectance. QA60 allows TerrAI to automatically filter out cloudy pixels so only clear tree canopies are analyzed.",
+  },
+  VERRA: {
+    term: "VERRA",
+    abbreviation: "VERRA / VCS",
+    name: "Verified Carbon Standard (VCS)",
+    category: "Carbon Standards & Policy",
+    definition: "The world's largest voluntary greenhouse gas crediting program, certifying carbon projects that reduce or remove emissions.",
+    whyItMatters: "Verra-certified carbon units (VCUs) trade at premium values on international carbon markets, providing direct revenue to communities.",
+    nepalContext: "TerrAI automates the satellite and historical due-diligence data packages required for VM0007 / VM0015 REDD+ methodology compliance.",
+  },
+  "ART-TREES": {
+    term: "ART-TREES",
+    abbreviation: "ART-TREES",
+    name: "The REDD+ Environmental Excellency Standard",
+    category: "Carbon Standards & Policy",
+    definition: "A rigorous global greenhouse gas standard for jurisdictional and national-scale forest carbon credits under the Architecture for REDD+ Transactions (ART).",
+    whyItMatters: "Enables national and provincial governments to issue high-integrity emission reduction credits for international climate finance.",
+    nepalContext: "Nepal is implementing ART-TREES jurisdictional programs in the Terai Arc Landscape (TAL) and middle hills.",
+  },
+  "REDD+": {
+    term: "REDD+",
+    abbreviation: "REDD+",
+    name: "Reducing Emissions from Deforestation and forest Degradation",
+    category: "Carbon Standards & Policy",
+    definition: "A United Nations framework that provides financial incentives for developing countries to reduce emissions from forested lands and invest in low-carbon sustainable paths.",
+    whyItMatters: "Creates financial value for the carbon stored in standing forests, making living trees more valuable alive than cut down.",
+  },
+  "t/ha": {
+    term: "t/ha",
+    abbreviation: "t/ha",
+    name: "Metric Tonnes per Hectare",
+    category: "Carbon & Biomass",
+    definition: "A density unit representing 1,000 kilograms of biomass or carbon per 10,000 square meters (1 hectare ≈ 2.47 acres).",
+    whyItMatters: "Standard unit across forestry science allowing easy comparison regardless of forest size.",
+    typicalValue: "1 hectare = 100m × 100m (about the size of an international rugby pitch).",
+  },
+  DBH: {
+    term: "DBH",
+    abbreviation: "DBH",
+    name: "Diameter at Breast Height",
+    category: "Carbon & Biomass",
+    definition: "The standard metric measurement of tree trunk diameter measured at 1.3 meters (breast height) above the ground.",
+    whyItMatters: "Forest inventory teams use DBH calipers to calculate individual tree stem volume and biomass using allometric equations.",
+    nepalContext: "CFUG inventory guidelines require trees with DBH ≥ 10 cm to be enumerated for official forest operational plans.",
+  },
+  FRTC: {
+    term: "FRTC",
+    abbreviation: "FRTC",
+    name: "Forest Research and Training Centre",
+    category: "Nepal Forestry",
+    definition: "The premier governmental scientific body under Nepal's Ministry of Forests and Environment responsible for national forest inventories, LiDAR surveys, and forest mapping.",
+    whyItMatters: "Provides authoritative national allometric equations and species biomass tables utilized in TerrAI's modeling engine.",
+  },
+  ICIMOD: {
+    term: "ICIMOD",
+    abbreviation: "ICIMOD",
+    name: "International Centre for Integrated Mountain Development",
+    category: "Nepal Forestry",
+    definition: "An intergovernmental regional knowledge centre based in Lalitpur, Nepal, serving the eight regional member countries of the Hindu Kush Himalayas.",
+    whyItMatters: "Publishes peer-reviewed mountain ecology datasets and Himalayan forest biomass reference levels.",
+  },
+  "Carbon Fraction": {
+    term: "Carbon Fraction",
+    abbreviation: "CF",
+    name: "Biomass Carbon Fraction",
+    category: "Carbon & Biomass",
+    definition: "The proportion of total dry wood biomass that consists of elemental carbon atoms.",
+    whyItMatters: "Allows direct conversion from dry plant biomass to stored carbon (typically 0.47 for broadleaf species, 0.51 for conifers according to IPCC Tier 1 defaults).",
+    typicalValue: "0.47 – 0.51 (approx. 47% – 51% of dry wood weight)",
+  },
+  "Root:Shoot": {
+    term: "Root:Shoot",
+    abbreviation: "R:S",
+    name: "Root-to-Shoot Ratio",
+    category: "Carbon & Biomass",
+    definition: "The mathematical ratio of underground root biomass (below-ground) to the above-ground trunk and branches.",
+    whyItMatters: "Allows satellite systems to estimate underground root carbon without digging up roots.",
+    nepalContext: "Terai broadleaf: 0.24; Subtropical mixed: 0.28; Himalayan conifer: 0.32.",
+  },
+  YoY: {
+    term: "YoY",
+    abbreviation: "YoY",
+    name: "Year-over-Year Change",
+    category: "Remote Sensing",
+    definition: "The percentage comparison of vegetation health between the exact same seasonal window in consecutive years.",
+    whyItMatters: "Comparing matching seasons (e.g., Nov 2023 vs Nov 2024) eliminates false alarms caused by natural winter leaf drop or monsoon surges.",
+  },
+  Hotspot: {
+    term: "Hotspot",
+    abbreviation: "Hotspot",
+    name: "Forest Degradation Hotspot",
+    category: "Remote Sensing",
+    definition: "A localized pixel cluster where NDVI has fallen significantly below historical baselines (e.g. >10% loss).",
+    whyItMatters: "Pins the exact GPS coordinates where community forest rangers need to patrol to investigate tree cutting, encroachment, or wildfire.",
+  },
+  "Field Calibration": {
+    term: "Field Calibration",
+    abbreviation: "Calib",
+    name: "Field Inventory Ground-Truthing",
+    category: "Carbon & Biomass",
+    definition: "Adjusting raw satellite optical reflectance using measured tree DBH sample plots collected on the ground by CFUG foresters.",
+    whyItMatters: "Satellites see only tree crowns; field plots calibrate for tree height, wood density, and understory, ensuring audit-proof accuracy.",
+    typicalValue: "Field Biomass ÷ Satellite Biomass = Calibration Multiplier",
+  },
+  "Eco-zone": {
+    term: "Eco-zone",
+    abbreviation: "Eco-zone",
+    name: "Altitudinal Ecological Zone",
+    category: "Nepal Forestry",
+    definition: "Geographical elevation bands in Nepal with distinct climate, soil, and forest composition (Terai, Siwalik, Middle Hills, High Mountains, High Himal).",
+    whyItMatters: "Tree growth rates and carbon ceilings vary drastically between the tropical Terai (300m) and subalpine birch/rhododendron forests (3,500m).",
+  },
+  "Due Diligence": {
+    term: "Due Diligence",
+    abbreviation: "Due Diligence",
+    name: "Forest Due Diligence Audit",
+    category: "Carbon Standards & Policy",
+    definition: "A thorough investigation and risk analysis of a forest's legal tenure, environmental health, deforestation threats, and community governance before funding or carbon crediting.",
+    whyItMatters: "Ensures carbon investors and donors do not finance greenwashed or high-risk projects that might be cleared in the future.",
+    nepalContext: "TerrAI runs automated Due Diligence Reports using Groq's high-speed AI models cross-referencing satellite NDVI trends with local community forestry records.",
+  },
+  "Revisit Cycle": {
+    term: "Revisit Cycle",
+    abbreviation: "Revisit",
+    name: "Satellite Revisit Period",
+    category: "Remote Sensing",
+    definition: "The time elapsed between two consecutive observations of the same location on the ground by the satellite constellation.",
+    whyItMatters: "A 5-day revisit cycle means cloud-free observation windows are frequent even during tricky pre-monsoon transitions.",
+    typicalValue: "5 days for Sentinel-2 (A + B satellites)",
+  },
+  "Baseline Period": {
+    term: "Baseline Period",
+    abbreviation: "Baseline",
+    name: "Reference Historical Benchmark",
+    category: "Remote Sensing",
+    definition: "The initial year or seasonal window used as the scientific point of reference to calculate subsequent forest gain or loss.",
+    whyItMatters: "Carbon credits are issued only for improvements above the historical baseline.",
+  },
+  CNN: {
+    term: "CNN",
+    abbreviation: "CNN",
+    name: "Convolutional Neural Network",
+    category: "Remote Sensing",
+    definition: "A vision model that learns local spatial patterns such as edges, textures, canopy gaps, and forest boundaries from image pixels.",
+    whyItMatters: "CNNs can turn satellite image patches into forest maps, but they must be trained and independently validated before their predictions are used for carbon accounting.",
+  },
+  "U-Net": {
+    term: "U-Net",
+    abbreviation: "U-Net",
+    name: "U-Net Pixel Segmentation Model",
+    category: "Remote Sensing",
+    definition: "An encoder-decoder vision architecture that predicts a class for each image pixel, making it useful for forest, clearing, road, and water masks.",
+    whyItMatters: "Pixel-level outputs can show exactly where a change occurs instead of returning only one score for an entire forest parcel.",
+  },
+  Siamese: {
+    term: "Siamese",
+    abbreviation: "Siamese",
+    name: "Shared-Weight Change Detection Network",
+    category: "Remote Sensing",
+    definition: "A model that sends two dates through the same feature extractor and compares their learned representations to detect change.",
+    whyItMatters: "The shared extractor makes baseline-versus-comparison analysis more consistent than treating each date as unrelated imagery.",
+  },
+  "Swin Transformer": {
+    term: "Swin Transformer",
+    abbreviation: "Swin",
+    name: "Hierarchical Windowed Vision Transformer",
+    category: "Remote Sensing",
+    definition: "A vision architecture that looks at local image windows and merges them into larger context, helping connect canopy patterns with nearby roads, farms, and terrain.",
+    whyItMatters: "Landscape context helps distinguish a persistent forest disturbance from a small seasonal or sensor artefact.",
+  },
+  ConvLSTM: {
+    term: "ConvLSTM",
+    abbreviation: "ConvLSTM",
+    name: "Convolutional Long Short-Term Memory",
+    category: "Remote Sensing",
+    definition: "A recurrent model that learns image sequences while preserving the geographic arrangement of pixels.",
+    whyItMatters: "It can identify persistent decline and recovery across monthly or annual observations rather than reacting to one noisy scene.",
+  },
+  "Grad-CAM": {
+    term: "Grad-CAM",
+    abbreviation: "Grad-CAM",
+    name: "Gradient-weighted Class Activation Mapping",
+    category: "Remote Sensing",
+    definition: "An explanation method that highlights image regions most influential to a trained vision model's prediction.",
+    whyItMatters: "It helps reviewers see whether a model focused on a real clearing, cloud edge, road, or an irrelevant artefact.",
+  },
+  SAR: {
+    term: "SAR",
+    abbreviation: "SAR",
+    name: "Synthetic Aperture Radar",
+    category: "Remote Sensing",
+    definition: "Radar imagery that can observe surface structure day or night and often through clouds, unlike optical imagery.",
+    whyItMatters: "Sentinel-1 SAR adds information during Nepal's cloudy monsoon season and can reveal changes in vegetation structure.",
+  },
+  NBR: {
+    term: "NBR",
+    abbreviation: "NBR",
+    name: "Normalized Burn Ratio",
+    category: "Remote Sensing",
+    definition: "A spectral index using near-infrared and short-wave infrared reflectance to highlight fire damage and exposed surfaces.",
+    whyItMatters: "NBR helps separate burned or severely disturbed areas from ordinary seasonal variation.",
+  },
+  "Model uncertainty": {
+    term: "Model uncertainty",
+    abbreviation: "Uncertainty",
+    name: "Prediction Uncertainty",
+    category: "Remote Sensing",
+    definition: "A measure of how much the available data and model disagree or lack enough evidence for a confident prediction.",
+    whyItMatters: "High uncertainty should trigger field verification instead of being presented as a definite deforestation event.",
+  },
+};
+
+export function lookupTerm(key: string): ForestryTerm | null {
+  const clean = key.trim().toUpperCase();
+  for (const [k, v] of Object.entries(FORESTRY_TERMS)) {
+    if (k.toUpperCase() === clean || v.abbreviation?.toUpperCase() === clean || v.term.toUpperCase() === clean) {
+      return v;
+    }
+  }
+  // Try partial match
+  for (const [k, v] of Object.entries(FORESTRY_TERMS)) {
+    if (k.toLowerCase().includes(key.toLowerCase()) || v.name.toLowerCase().includes(key.toLowerCase())) {
+      return v;
+    }
+  }
+  return null;
+}

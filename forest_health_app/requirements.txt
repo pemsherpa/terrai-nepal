@@ -1,0 +1,11 @@
+streamlit
+geemap
+earthengine-api
+pandas
+plotly
+folium
+streamlit-folium
+google-generativeai
+python-dotenv
+reportlab
+kaleido==0.2.1

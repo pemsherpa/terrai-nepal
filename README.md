@@ -1,73 +1,134 @@
-# Welcome to your Lovable project
+# TerrAI Nepal
 
-## Project info
+Forest carbon MRV platform for Nepal — Vite/React frontend + Django/DRF backend on local PostgreSQL.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Stack
 
-## How can I edit this code?
+- **Frontend:** React, TypeScript, Vite, TanStack Query, shadcn/ui, Leaflet
+- **Backend:** Django + Django REST Framework + SimpleJWT + Google Earth Engine + Groq
+- **Database:** PostgreSQL (`terrai_nepal`)
 
-There are several ways of editing your application.
+## Prerequisites
 
-**Use Lovable**
+- Node.js 18+ (frontend only)
+- Python 3.12+
+- PostgreSQL running locally
+- Google Earth Engine project + Groq API key (see `forest_health_app/.env` or root `.env`)
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Setup
 
-Changes made via Lovable will be committed automatically to this repo.
+```bash
+# Create DB (once)
+createdb terrai_nepal
 
-**Use your preferred IDE**
+# Backend
+cd backend
+pip3 install -r requirements.txt
+python3 manage.py migrate
+python3 manage.py runserver 8001
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Frontend (separate terminal)
+cd ..
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Frontend: http://localhost:8080
+API: http://localhost:8001/api/ (Vite proxies `/api` → Django)
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Using the application
 
-**Use GitHub Codespaces**
+1. Register or sign in at `/auth`.
+2. Open **Dashboard**.
+3. Choose an area using a district, community forest, coordinates, drawn
+   polygon, or GeoJSON.
+4. Choose **Exact dates** for a two-date comparison, or **Season window** for
+   cloud-resistant seasonal composites.
+5. Select the forest type and optional project, then click **Analyse Forest**.
+6. Read the NDVI, change, area, biomass, and CO₂e cards. Use the map buttons
+   to switch between baseline, comparison, hotspot, and daily-pass layers.
+7. Enable the multi-year trend, monthly series, hotspot map, or AI report when
+   needed. Download the PDF after the report is ready.
+8. Use **Run vision models** to evaluate live Sentinel-2 thumbnails with the
+   local prototype checkpoints. The U-Net mask, Siamese change mask, Vision
+   Transformer class, Grad-CAM, and uncertainty outputs are screening
+   evidence, not certified carbon measurements.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Vision prototype setup
 
-## What technologies are used for this project?
+The optional prototype training and live inference dependencies are listed in
+[`backend/requirements-vision.txt`](./backend/requirements-vision.txt).
 
-This project is built with:
+```bash
+python3 -m pip install -r backend/requirements-vision.txt
+python3 backend/mrv/train_vision.py --limit 3000 --epochs 3
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+For live Earth Engine thumbnails, set `GEE_PROJECT_ID` and authenticate Earth
+Engine (`earthengine authenticate`). The live endpoint is
+`POST /api/vision/infer/` and requires an authenticated user.
 
-## How can I deploy this project?
+The Vision Transformer is trained on real EuroSAT class labels. The U-Net
+uses EuroSAT green-canopy pseudo-masks and the Siamese model uses synthetic
+change masks, so all three outputs remain labelled prototype evidence.
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+Optional Celery worker (when Redis is running):
 
-## Can I connect a custom domain to my Lovable project?
+```bash
+# brew install redis && brew services start redis
+# export REDIS_URL=redis://127.0.0.1:6379/0
+npm run dev:worker
+```
 
-Yes, you can!
+Without Redis, analyze jobs still run in a background thread and results are cached in the Postgres `terrai_cache_table`.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Carbon estimates apply FRTC / ICIMOD physiographic zone caps (Terai, Siwaliks, Middle Mountains, High Mountains, High Himal) so tropical NDVI saturation (e.g. Chitwan) cannot over-credit AGB.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Hybrid optical + SAR: Max-NDVI composites with S2 cloud-probability masking, Sentinel-1 RVI during monsoon, and regional strata (`terai_sal`, `high_mountain_conifer`, …). Projects store a field-inventory calibration coefficient (`Final = satellite × coeff`).
+
+## Auth
+
+JWT email/password auth.
+
+| Method | Path | Notes |
+|--------|------|-------|
+| POST | `/api/auth/register/` | `{ email, password, full_name, organization_name? }` |
+| POST | `/api/auth/login/` | `{ email, password }` → access + refresh |
+| POST | `/api/auth/refresh/` | `{ refresh }` |
+| GET/PATCH | `/api/auth/profile/me/` | Authenticated profile |
+| GET/POST | `/api/auth/organizations/` | List / create NGO orgs |
+| GET | `/api/auth/organizations/:id/` | Org detail |
+| GET/POST | `/api/auth/organizations/:id/members/` | List / invite members |
+
+## API resources
+
+| Resource | Path | Notes |
+|----------|------|-------|
+| Projects | `/api/projects/` | Owner + org-scoped |
+| Biomass | `/api/biomass-history/?project_id=` | Create + list |
+| Verification | `/api/verification-reports/` | Includes `project_name` |
+| Feed | `/api/verification-reports/feed/` | Polled by CarbonFeed |
+| Analyze | `POST /api/analyze/` | Async job (202) or cache hit (200) |
+| Analyze job | `GET /api/analyze/jobs/:id/` | Poll status / result |
+| Report | `/api/report/generate/` | Groq due-diligence JSON |
+| PDF | `/api/export/pdf/` | Downloadable PDF |
+| Pass dates | `/api/pass-dates/` | Cached Sentinel-2 dates |
+| Daily NDVI | `/api/daily-ndvi/` | Cached single-pass NDVI |
+| Baselines | `/api/baselines/` | Cached district benchmarks |
+
+## Multi-tenancy
+
+- `Organization` + `OrganizationMembership` (owner / manager / member)
+- Projects may belong to an organization; managers see all org projects
+- Register with `organization_name` to auto-create an org as owner
+
+## Prototype reference
+
+`forest_health_app/` holds the original Streamlit/FastAPI science prototype (`app.py`, `main.py`). It is not the production web stack.
+
+## Tests
+
+```bash
+cd backend && python3 manage.py test forests -v2
+npm test
+```

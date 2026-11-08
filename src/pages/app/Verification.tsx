@@ -1,19 +1,10 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useVerificationReports } from "@/hooks/use-verification-reports";
+import { useProjects } from "@/hooks/use-projects";
 import { FileCheck, Download, CheckCircle, Clock, XCircle, FileText } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-
-interface ReportRow {
-  id: string;
-  status: "pending" | "approved" | "rejected";
-  created_at: string;
-  pdf_url: string | null;
-  integrity_seal_hash: string | null;
-  project_name: string;
-}
 
 const statusConfig = {
   pending: { icon: Clock, label: "Pending Review", className: "bg-terrai-gold/20 text-terrai-gold border-terrai-gold/30" },
@@ -22,32 +13,8 @@ const statusConfig = {
 };
 
 const Verification = () => {
-  const [reports, setReports] = useState<ReportRow[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetch = async () => {
-      const { data } = await supabase
-        .from("verification_reports")
-        .select("id, status, created_at, pdf_url, integrity_seal_hash, project_id, projects(name)")
-        .order("created_at", { ascending: false });
-
-      if (data) {
-        setReports(
-          data.map((r: any) => ({
-            id: r.id,
-            status: r.status,
-            created_at: r.created_at,
-            pdf_url: r.pdf_url,
-            integrity_seal_hash: r.integrity_seal_hash,
-            project_name: r.projects?.name ?? "Unknown",
-          }))
-        );
-      }
-      setLoading(false);
-    };
-    fetch();
-  }, []);
+  const { data: projects } = useProjects();
+  const { data: reports = [], isLoading: loading } = useVerificationReports();
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -68,6 +35,10 @@ const Verification = () => {
           {reports.map((r) => {
             const config = statusConfig[r.status];
             const Icon = config.icon;
+            const projectName =
+              r.project_name ??
+              projects?.find((p) => p.id === r.project_id)?.name ??
+              "Unknown";
             return (
               <Card key={r.id} className="p-5 shadow-card">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -76,7 +47,7 @@ const Verification = () => {
                       <FileText className="w-5 h-5 text-muted-foreground" />
                     </div>
                     <div className="min-w-0">
-                      <p className="font-medium text-foreground truncate">{r.project_name}</p>
+                      <p className="font-medium text-foreground truncate">{projectName}</p>
                       <p className="text-xs text-muted-foreground">
                         Submitted {formatDistanceToNow(new Date(r.created_at), { addSuffix: true })}
                       </p>

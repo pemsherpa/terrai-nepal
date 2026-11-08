@@ -1,33 +1,40 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
+import { apiFetch, unwrapList, type Paginated } from "@/lib/api";
 
-type BiomassHistory = Database["public"]["Tables"]["biomass_history"]["Row"];
-type BiomassInsert = Database["public"]["Tables"]["biomass_history"]["Insert"];
+export interface BiomassHistory {
+  id: string;
+  project_id: string;
+  recorded_at: string;
+  carbon_density: number;
+  health_score: number;
+  source_url: string | null;
+  created_at: string;
+}
+
+type BiomassInsert = Pick<BiomassHistory, "project_id" | "carbon_density" | "health_score"> & {
+  source_url?: string | null;
+};
 
 export const useBiomassHistory = (projectId: string | undefined) =>
   useQuery({
     queryKey: ["biomass_history", projectId],
     enabled: !!projectId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("biomass_history")
-        .select("*")
-        .eq("project_id", projectId!)
-        .order("recorded_at", { ascending: true });
-      if (error) throw error;
-      return data as BiomassHistory[];
+      const data = await apiFetch<Paginated<BiomassHistory> | BiomassHistory[]>(
+        `/api/biomass-history/?project_id=${projectId}`,
+      );
+      return unwrapList(data);
     },
   });
 
 export const useCreateBiomassEntry = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (entry: BiomassInsert) => {
-      const { data, error } = await supabase.from("biomass_history").insert(entry).select().single();
-      if (error) throw error;
-      return data as BiomassHistory;
-    },
+    mutationFn: (entry: BiomassInsert) =>
+      apiFetch<BiomassHistory>("/api/biomass-history/", {
+        method: "POST",
+        body: JSON.stringify(entry),
+      }),
     onSuccess: (_, variables) =>
       qc.invalidateQueries({ queryKey: ["biomass_history", variables.project_id] }),
   });
